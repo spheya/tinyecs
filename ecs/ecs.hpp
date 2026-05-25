@@ -17,7 +17,7 @@ namespace ecs {
 	class world {
 	public:
 		template<typename... T>
-		entity add_entity(T&&... components) {
+		[[nodiscard]] entity add_entity(T&&... components) {
 			signature sig = create_signature<T...>();
 
 			archetype* archetype;
@@ -41,30 +41,42 @@ namespace ecs {
 			return e;
 		}
 
+		void remove_entity(entity e) {
+			entity_record record = entities.at(e);
+			entity replacement = archetypes[record.archetype].remove_entity(record.row);
+			if(replacement) {
+				entities.at(replacement).row = record.row;
+			} else {
+				archetype_lut.erase(archetypes[record.archetype].signature);
+				archetypes.erase(archetypes.begin() + std::vector<archetype>::difference_type(record.archetype));
+			}
+			entities.erase(e);
+		}
+
 		template<typename T>
-		bool has_component(entity entity) {
-			entity_record record = entities[entity];
-			archetype& archetype = archetypes[record.archetype];
+		[[nodiscard]] bool has_component(entity e) const {
+			entity_record record = entities.at(e);
+			const archetype& archetype = archetypes[record.archetype];
 			return archetype.signature.contains(type_id<T>());
 		}
 
 		template<typename T>
-		T& get_component(entity entity) {
-			entity_record record = entities.at(entity);
+		T& get_component(entity e) {
+			entity_record record = entities.at(e);
 			archetype& archetype = archetypes[record.archetype];
 			assert(archetype.signature.contains(type_id<T>()));
 			return reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data)[record.row];
 		}
 
 		template<typename T>
-		T& get_component(entity entity) const {
-			entity_record record = entities.at(entity);
+		T& get_component(entity e) const {
+			entity_record record = entities.at(e);
 			const archetype& archetype = archetypes[record.archetype];
 			assert(archetype.signature.contains(type_id<T>()));
 			return reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data)[record.row];
 		}
 
-		entity nextEntity;
+		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
 		std::unordered_map<signature, size_t> archetype_lut;
 		std::vector<archetype> archetypes;

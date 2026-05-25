@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <type_traits>
 #include <utility>
 
 #include "macros.hpp"
@@ -47,7 +48,7 @@ namespace ecs {
 		template<typename... T>
 		void init() {
 			columns = new column[sizeof...(T)];
-			init_impl<T...>(std::index_sequence_for<T...>());
+			init_impl<std::remove_cvref_t<T>...>(std::index_sequence_for<T...>());
 		}
 
 		template<typename... T>
@@ -56,13 +57,27 @@ namespace ecs {
 			entities[size] = entity;
 			(
 			    [&] {
-				    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) { return c.component_id == type_id<T>(); });
+				    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) { return c.component_id == type_id<std::remove_cvref_t<T>>(); });
 					assert(it != columns + signature.size());
-					reinterpret_cast<T*>(it->data)[size] = std::forward<T>(components);
+					reinterpret_cast<std::remove_cvref_t<T>*>(it->data)[size] = std::forward<T>(components);
 			    }(),
 			    ...
 			);
 			return size++;
+		}
+
+		// returns the entity that took its place or `null_entity` if the archetype is empty
+		entity remove_entity(size_t row) {
+			assert(row < size);
+			--size;
+			if(size == 0) return null_entity;
+			entities[row] = entities[size];
+			for(int i = 0; i < signature.size(); ++i) {
+				column& column = columns[i];
+				column.destroy(column.data + column.element_size * row);
+				column.move(column.data + column.element_size * row, column.data + column.element_size * size);
+			}
+			return entities[row];
 		}
 
 	private:
