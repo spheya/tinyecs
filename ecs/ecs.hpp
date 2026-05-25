@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cassert>
+#include <type_traits>
 #include <unordered_map>
 
 #include "archetype.hpp"
-#include "ecs/signature.hpp"
-#include "ecs/types.hpp"
+#include "signature.hpp"
+#include "types.hpp"
+#include "view.hpp"
 
 namespace ecs {
 
@@ -30,6 +32,9 @@ namespace ecs {
 		template<typename T>
 		[[nodiscard]] T& get_component(entity e) const;
 
+		template<typename... T>
+		[[nodiscard]] entity_view<T...> get_components(entity e);
+
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
 		std::unordered_map<signature, size_t> archetype_lut;
@@ -38,7 +43,7 @@ namespace ecs {
 
 	template<typename... T>
 	inline entity world::add_entity(T&&... components) {
-		signature sig = create_signature<T...>();
+		signature sig = create_signature<std::remove_cvref_t<T>...>();
 
 		archetype* archetype;
 		size_t archetype_index;
@@ -89,6 +94,14 @@ namespace ecs {
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<T>()));
 		return reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data)[record.row];
+	}
+
+	template<typename... T>
+	inline entity_view<T...> world::get_components(entity e) {
+    	entity_record record = entities.at(e);
+    	const archetype& archetype = archetypes[record.archetype];
+        assert(archetype.signature.contains<T...>());
+        return entity_view<T...>(reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data) + record.row...);
 	}
 
 } // namespace ecs

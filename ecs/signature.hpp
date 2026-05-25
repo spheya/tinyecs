@@ -26,22 +26,24 @@ namespace ecs {
 	struct signature {
 		std::vector<component_id> components;
 
-		[[nodiscard]] size_t size() const noexcept;
+		template<typename... T>
+		[[nodiscard]] bool contains() const;
 		[[nodiscard]] bool contains(component_id component) const;
-		[[nodiscard]] bool contains(const signature& other) const;
 		[[nodiscard]] size_t getIndex(component_id component) const;
+		[[nodiscard]] size_t size() const noexcept;
 	};
 
 	template<typename... T>
 	    requires valid_signature_v<T...>
 	inline signature create_signature() {
-		signature result{ { type_id<std::remove_cvref_t<T>>()... } };
+		signature result{ { type_id<T>()... } };
 		std::ranges::sort(result.components.begin(), result.components.end());
 		return result;
 	}
 
-	inline size_t signature::size() const noexcept {
-		return components.size();
+	template<typename... T>
+	inline bool signature::contains() const {
+		return (contains(type_id<T>()) && ...);
 	}
 
 	inline bool signature::contains(component_id component) const {
@@ -49,13 +51,13 @@ namespace ecs {
 		       != components.end(); // todo: binary search or sth, make use of the fact this list is sorted
 	}
 
-	inline bool signature::contains(const signature& other) const {
-		return std::ranges::all_of(other.components, [this](component_id c) { return contains(c); });
-	}
-
 	inline size_t signature::getIndex(component_id component) const {
 		return std::ranges::find(components.begin(), components.end(), component)
 		       - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
+	}
+
+	inline size_t signature::size() const noexcept {
+		return components.size();
 	}
 
 	inline bool operator==(const signature& lhs, const signature& rhs) {
