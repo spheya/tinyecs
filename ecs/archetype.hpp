@@ -83,7 +83,10 @@ namespace ecs {
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
-		for(int i = 0; i < signature.size(); ++i) free(columns[i].data);
+    	for(int i = 0; i < signature.size(); ++i) {
+    	    columns[i].mass_destroy(columns[i].data, size);
+    	    free(columns[i].data);
+    	}
 		free(entities);
 		delete[] columns;
 
@@ -100,7 +103,10 @@ namespace ecs {
 	}
 
 	inline archetype::~archetype() {
-		for(int i = 0; i < signature.size(); ++i) free(columns[i].data);
+		for(int i = 0; i < signature.size(); ++i) {
+		    columns[i].mass_destroy(columns[i].data, size);
+		    free(columns[i].data);
+		}
 		free(entities);
 		delete[] columns;
 	}

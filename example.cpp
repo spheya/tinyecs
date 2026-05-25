@@ -20,7 +20,9 @@ int main() {
 	ecs::entity entity2 = world.add_entity(Position{.x = 1.0f, .y = 0.0f, .z = 0.0f}, Renderer{}, Physics{});
 	ecs::entity entity3 = world.add_entity(Position{.x = 2.0f, .y = 0.0f, .z = 0.0f}, Renderer{});
 
-	auto&& [a, b] = world.get_components<Physics, Position>(entity3);
+	world.remove_entity(entity3);
+
+	auto&& [a, b] = world.get_components<Renderer, Position>(entity2);
 	b.x = 69.0f;
 
 	std::cout << "archetype count: " << world.archetypes.size() << '\n';
