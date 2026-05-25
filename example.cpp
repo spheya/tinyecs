@@ -16,8 +16,6 @@ struct Renderer {
 };
 
 int main() {
-	static_assert(std::is_same_v<std::remove_cvref_t<const int>, int>);
-
 	ecs::world world;
 	ecs::entity entity1 = world.add_entity(Position{.x = 0.0f, .y = 0.0f, .z = 0.0f}, Physics{}, Renderer{});
 	ecs::entity entity2 = world.add_entity(Position{.x = 1.0f, .y = 0.0f, .z = 0.0f}, Renderer{}, Physics{});

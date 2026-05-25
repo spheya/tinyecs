@@ -26,21 +26,10 @@ namespace ecs {
 	struct signature {
 		std::vector<component_id> components;
 
-		[[nodiscard]] size_t size() const noexcept { return components.size(); }
-
-		[[nodiscard]] bool contains(component_id component) const {
-			return std::ranges::find(components.begin(), components.end(), component)
-			       != components.end(); // todo: binary search or sth, make use of the fact this list is sorted
-		}
-
-		[[nodiscard]] bool contains(const signature& other) const {
-			return std::ranges::all_of(other.components, [this](component_id c) { return contains(c); });
-		}
-
-		[[nodiscard]] size_t getIndex(component_id component) const {
-			return std::ranges::find(components.begin(), components.end(), component)
-			       - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
-		}
+		[[nodiscard]] size_t size() const noexcept;
+		[[nodiscard]] bool contains(component_id component) const;
+		[[nodiscard]] bool contains(const signature& other) const;
+		[[nodiscard]] size_t getIndex(component_id component) const;
 	};
 
 	template<typename... T>
@@ -49,6 +38,24 @@ namespace ecs {
 		signature result{ { type_id<std::remove_cvref_t<T>>()... } };
 		std::ranges::sort(result.components.begin(), result.components.end());
 		return result;
+	}
+
+	inline size_t signature::size() const noexcept {
+		return components.size();
+	}
+
+	inline bool signature::contains(component_id component) const {
+		return std::ranges::find(components.begin(), components.end(), component)
+		       != components.end(); // todo: binary search or sth, make use of the fact this list is sorted
+	}
+
+	inline bool signature::contains(const signature& other) const {
+		return std::ranges::all_of(other.components, [this](component_id c) { return contains(c); });
+	}
+
+	inline size_t signature::getIndex(component_id component) const {
+		return std::ranges::find(components.begin(), components.end(), component)
+		       - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
 	}
 
 	inline bool operator==(const signature& lhs, const signature& rhs) {
