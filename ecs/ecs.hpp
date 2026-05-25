@@ -44,12 +44,8 @@ namespace ecs {
 		void remove_entity(entity e) {
 			entity_record record = entities.at(e);
 			entity replacement = archetypes[record.archetype].remove_entity(record.row);
-			if(replacement) {
+			if(replacement)
 				entities.at(replacement).row = record.row;
-			} else {
-				archetype_lut.erase(archetypes[record.archetype].signature);
-				archetypes.erase(archetypes.begin() + std::vector<archetype>::difference_type(record.archetype));
-			}
 			entities.erase(e);
 		}
 
