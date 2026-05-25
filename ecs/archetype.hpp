@@ -45,6 +45,39 @@ namespace ecs {
 	public:
 		archetype(signature signature) : signature(std::move(signature)) {}
 
+		archetype(archetype&) = delete;
+
+		archetype& operator=(archetype&) = delete;
+
+		archetype(archetype&& other) noexcept :
+		    signature(std::move(other.signature)), size(other.size), capacity(other.capacity), entities(other.entities), columns(other.columns) {
+			other.entities = nullptr;
+			other.columns = nullptr;
+		}
+
+		archetype& operator=(archetype&& other) noexcept {
+    		for(int i = 0; i < signature.size(); ++i) free(columns[i].data);
+    		free(entities);
+    		delete[] columns;
+
+			signature = std::move(other.signature);
+			size = other.size;
+			capacity = other.capacity;
+			entities = other.entities;
+			columns = other.columns;
+
+			other.entities = nullptr;
+			other.columns = nullptr;
+
+			return *this;
+		}
+
+		~archetype() {
+			for(int i = 0; i < signature.size(); ++i) free(columns[i].data);
+			free(entities);
+			delete[] columns;
+		}
+
 		template<typename... T>
 		void init() {
 			columns = new column[sizeof...(T)];
@@ -57,9 +90,11 @@ namespace ecs {
 			entities[size] = entity;
 			(
 			    [&] {
-				    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) { return c.component_id == type_id<std::remove_cvref_t<T>>(); });
-					assert(it != columns + signature.size());
-					reinterpret_cast<std::remove_cvref_t<T>*>(it->data)[size] = std::forward<T>(components);
+				    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) {
+					    return c.component_id == type_id<std::remove_cvref_t<T>>();
+				    });
+				    assert(it != columns + signature.size());
+				    reinterpret_cast<std::remove_cvref_t<T>*>(it->data)[size] = std::forward<T>(components);
 			    }(),
 			    ...
 			);
