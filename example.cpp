@@ -16,19 +16,13 @@ struct Renderer {
 
 int main() {
 	ecs::world world;
-	ecs::entity entity1 = world.add_entity(Position{.x = 0.0f, .y = 0.0f, .z = 0.0f}, Physics{}, Renderer{});
-	ecs::entity entity2 = world.add_entity(Position{.x = 1.0f, .y = 0.0f, .z = 0.0f}, Renderer{}, Physics{});
-	ecs::entity entity3 = world.add_entity(Position{.x = 2.0f, .y = 0.0f, .z = 0.0f}, Renderer{});
+	ecs::entity entity1 = world.add_entity(Position{ .x = 0.0f, .y = 0.0f, .z = 0.0f }, Physics{}, Renderer{});
+	ecs::entity entity2 = world.add_entity(Position{ .x = 1.0f, .y = 0.0f, .z = 0.0f }, Renderer{}, Physics{});
+	ecs::entity entity3 = world.add_entity(Position{ .x = 2.0f, .y = 0.0f, .z = 0.0f }, Renderer{});
 
 	world.remove_entity(entity3);
 
-	auto&& [a, b] = world.get_components<Renderer, Position>(entity2);
-	b.x = 69.0f;
+	for(auto&& [pos] : world.view<Position>()) { std::cout << pos.x << '\n'; }
 
-	std::cout << "archetype count: " << world.archetypes.size() << '\n';
-
-	std::cout << world.get_component<Position>(entity1).x << '\n';
-	std::cout << world.get_component<Position>(entity2).x << '\n';
-
-	//std::cout << world.get_component<Position>(entity3).x << '\n';
+	// std::cout << world.get_component<Position>(entity3).x << '\n';
 }

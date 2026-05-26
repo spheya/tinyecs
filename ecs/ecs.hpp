@@ -35,6 +35,9 @@ namespace ecs {
 		template<typename... T>
 		[[nodiscard]] entity_view<T...> get_components(entity e);
 
+		template<typename... T>
+		[[nodiscard]] view<T...> view();
+
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
 		std::unordered_map<signature, size_t> archetype_lut;
@@ -102,6 +105,11 @@ namespace ecs {
     	const archetype& archetype = archetypes[record.archetype];
         assert(archetype.signature.contains<T...>());
         return entity_view<T...>(reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data) + record.row...);
+	}
+
+	template<typename... T>
+	inline view<T...> world::view() {
+	    return ecs::view<T...>(archetypes.data(), archetypes.data() + archetypes.size());
 	}
 
 } // namespace ecs
