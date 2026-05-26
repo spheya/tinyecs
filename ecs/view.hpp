@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "ecs/archetype.hpp"
+#include "ecs/type_info.hpp"
 
 namespace ecs {
 
@@ -14,6 +15,11 @@ namespace ecs {
 	class entity_view<T, Rest...> {
 		template<typename... Ty>
 		friend class view_iterator;
+
+		static_assert(!(std::is_same_v<std::remove_const_t<T>, std::remove_const_t<Rest>> || ...), "View must only contain unique types");
+		static_assert(
+		    std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>>, "View must only contain non-reference and non-volatile types"
+		);
 
 	public:
 		entity_view() noexcept = default;
@@ -37,6 +43,10 @@ namespace ecs {
 
 	template<typename T>
 	class entity_view<T> {
+		static_assert(
+		    std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>>, "View must only contain non-reference and non-volatile types"
+		);
+
 	public:
 		entity_view() noexcept = default;
 		entity_view(T* ptr) noexcept;
@@ -56,6 +66,12 @@ namespace ecs {
 
 	template<typename... T>
 	class view_iterator {
+		static_assert(is_unique_v<std::remove_const_t<T>...>, "View must only contain unique types");
+		static_assert(
+		    (std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>> && ...),
+		    "View must only contain non-reference and non-volatile types"
+		);
+
 	public:
 		using value_type = entity_view<T...>;
 		using pointer = const entity_view<T...>*;
@@ -84,6 +100,12 @@ namespace ecs {
 
 	template<typename... T>
 	class view {
+		static_assert(is_unique_v<std::remove_const_t<T>...>, "View must only contain unique types");
+		static_assert(
+		    (std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>> && ...),
+		    "View must only contain non-reference and non-volatile types"
+		);
+
 	public:
 		using iterator = view_iterator<T...>;
 
@@ -141,7 +163,7 @@ namespace ecs {
 	template<typename T>
 	template<size_t I>
 	inline T& entity_view<T>::get() const noexcept {
-		static_assert(I == 0, "index out of range");
+		static_assert(I == 0, "Index out of bounds");
 		return *m_ptr;
 	}
 
@@ -171,13 +193,13 @@ namespace ecs {
 	view_iterator<T...>::view_iterator(const archetype* begin, const archetype* end) noexcept : m_archetype(begin), m_archetype_end(end) {
 		// todo: avoid duplicate code
 		// todo: make an ecs::view pre-calculate the begin and end archetype
-		while(!m_archetype->signature.contains<std::remove_cvref_t<T>...>()) {
+		while(!m_archetype->signature.contains<std::remove_const_t<T>...>()) {
 			if(++m_archetype == m_archetype_end) {
 				m_entity.m_ptr = nullptr;
 				return;
 			}
 		}
-		m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<std::remove_cvref_t<T>>())].data)...);
+		m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.index_of<std::remove_const_t<T>>()].data)...);
 	}
 
 	template<typename... T>
@@ -199,8 +221,9 @@ namespace ecs {
 					m_entity.m_ptr = nullptr;
 					return *this;
 				}
-			} while(!m_archetype->signature.contains<std::remove_cvref_t<T>...>());
-			m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<std::remove_cvref_t<T>>())].data)...);
+			} while(!m_archetype->signature.contains<std::remove_const_t<T>...>());
+			m_entity =
+			    entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.index_of<std::remove_const_t<T>>()].data)...);
 		} else {
 			++m_entity;
 		}

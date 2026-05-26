@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <type_traits>
 #include <vector>
@@ -10,50 +11,52 @@
 
 namespace ecs {
 
-	template<typename... T>
-	struct valid_signature;
-
-	template<>
-	struct valid_signature<> : std::true_type {};
-
-	template<typename T, typename... Rest>
-	struct valid_signature<T, Rest...> :
-	    std::bool_constant<!(std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<Rest>> || ...) && valid_signature<Rest...>::value> {};
-
-	template<typename... T>
-	constexpr bool valid_signature_v = valid_signature<T...>::value;
-
 	struct signature {
 		std::vector<component_id> components;
 
 		template<typename... T>
-		[[nodiscard]] bool contains() const;
-		[[nodiscard]] bool contains(component_id component) const;
-		[[nodiscard]] size_t getIndex(component_id component) const;
+		[[nodiscard]] bool contains() const noexcept;
+		[[nodiscard]] bool contains(component_id component) const noexcept;
+
+		template<typename T>
+		[[nodiscard]] size_t index_of() const noexcept;
+		[[nodiscard]] size_t index_of(component_id component) const noexcept;
 		[[nodiscard]] size_t size() const noexcept;
 	};
 
 	template<typename... T>
-	    requires valid_signature_v<T...>
 	inline signature create_signature() {
+		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
 		signature result{ { type_id<T>()... } };
 		std::ranges::sort(result.components.begin(), result.components.end());
 		return result;
 	}
 
 	template<typename... T>
-	inline bool signature::contains() const {
+	inline bool signature::contains() const noexcept {
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
 		return (contains(type_id<T>()) && ...);
 	}
 
-	inline bool signature::contains(component_id component) const {
+	inline bool signature::contains(component_id component) const noexcept {
 		return std::ranges::find(components.begin(), components.end(), component)
 		       != components.end(); // todo: binary search or sth, make use of the fact this list is sorted
 	}
 
-	inline size_t signature::getIndex(component_id component) const {
-		return std::ranges::find(components.begin(), components.end(), component)
-		       - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
+	template<typename T>
+	inline size_t signature::index_of() const noexcept {
+		static_assert(std::is_same_v<T, std::remove_cvref_t<T>>, "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!std::is_same_v<T, entity>, "Archetype signature cannot contain entity type");
+		return index_of(type_id<T>());
+	}
+
+	inline size_t signature::index_of(component_id component) const noexcept {
+		auto it = std::ranges::find(components.begin(), components.end(), component);
+		assert(it != components.end());
+		return it - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
 	}
 
 	inline size_t signature::size() const noexcept {

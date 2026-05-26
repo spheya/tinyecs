@@ -1,9 +1,22 @@
 #pragma once
 
-#include <cstdint>
 #include <atomic>
+#include <cstdint>
+#include <type_traits>
 
 namespace ecs {
+
+	template<typename... T>
+	struct is_unique;
+
+	template<>
+	struct is_unique<> : std::true_type {};
+
+	template<typename T, typename... Rest>
+	struct is_unique<T, Rest...> : std::bool_constant<!(std::is_same_v<T, Rest> || ...) && is_unique<Rest...>::value> {};
+
+	template<typename... T>
+	constexpr bool is_unique_v = is_unique<T...>::value;
 
 	using type_index = uint32_t;
 
@@ -12,7 +25,7 @@ namespace ecs {
 			static std::atomic<type_index> idx = 0;
 			return idx.fetch_add(1, std::memory_order_relaxed);
 		}
-	}
+	} // namespace internal
 
 	template<typename T>
 	[[nodiscard]] inline type_index type_id() noexcept {
@@ -20,4 +33,4 @@ namespace ecs {
 		return idx;
 	}
 
-}
+} // namespace ecs

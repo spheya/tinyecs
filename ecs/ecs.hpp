@@ -24,7 +24,10 @@ namespace ecs {
 		void remove_entity(entity e);
 
 		template<typename T>
-		[[nodiscard]] bool has_component(entity e) const;
+		[[nodiscard]] bool has_component(entity e) const noexcept;
+
+		template<typename... T>
+		[[nodiscard]] bool has_components(entity e) const noexcept;
 
 		template<typename T>
 		[[nodiscard]] T& get_component(entity e);
@@ -36,7 +39,13 @@ namespace ecs {
 		[[nodiscard]] entity_view<T...> get_components(entity e);
 
 		template<typename... T>
-		[[nodiscard]] view<T...> view();
+		[[nodiscard]] entity_view<const T...> get_components(entity e) const;
+
+		template<typename... T>
+		[[nodiscard]] ecs::view<T...> view();
+
+		template<typename... T>
+		[[nodiscard]] ecs::view<const T...> view() const;
 
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
@@ -57,14 +66,14 @@ namespace ecs {
 			archetype_lut.emplace(sig, archetype_index);
 			archetypes.emplace_back(std::move(sig));
 			archetype = &archetypes.back();
-			archetype->init<T...>();
+			archetype->init<std::remove_cvref_t<T>...>();
 		} else {
 			archetype_index = it->second;
 			archetype = &archetypes[archetype_index];
 		}
 
 		entity e = nextEntity++;
-		size_t row = archetype->add_entity<T...>(e, std::forward<T>(components)...);
+		size_t row = archetype->add_entity<std::remove_cvref_t<T>...>(e, std::forward<T>(components)...);
 		entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;
 	}
@@ -77,39 +86,59 @@ namespace ecs {
 	}
 
 	template<typename T>
-	inline bool world::has_component(entity e) const {
+	inline bool world::has_component(entity e) const noexcept {
+		return has_components<T>(e);
+	}
+
+	template<typename... T>
+	inline bool world::has_components(entity e) const noexcept {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		return archetype.signature.contains(type_id<T>());
+		return archetype.signature.contains<T...>();
 	}
 
 	template<typename T>
 	inline T& world::get_component(entity e) {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains(type_id<T>()));
-		return reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data)[record.row];
+		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
+		return reinterpret_cast<T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data)[record.row];
 	}
 
 	template<typename T>
 	inline const T& world::get_component(entity e) const {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains(type_id<T>()));
-		return reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data)[record.row];
+		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
+		return reinterpret_cast<const T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data)[record.row];
 	}
 
 	template<typename... T>
 	inline entity_view<T...> world::get_components(entity e) {
-    	entity_record record = entities.at(e);
-    	const archetype& archetype = archetypes[record.archetype];
-        assert(archetype.signature.contains<T...>());
-        return entity_view<T...>(reinterpret_cast<T*>(archetype.columns[archetype.signature.getIndex(type_id<T>())].data) + record.row...);
+		entity_record record = entities.at(e);
+		const archetype& archetype = archetypes[record.archetype];
+		assert(archetype.signature.contains<T...>());
+		return entity_view<T...>(reinterpret_cast<T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data) + record.row...);
+	}
+
+	template<typename... T>
+	inline entity_view<const T...> world::get_components(entity e) const {
+		entity_record record = entities.at(e);
+		const archetype& archetype = archetypes[record.archetype];
+		assert(archetype.signature.contains<std::remove_const_t<T>...>());
+		return entity_view<const T...>(
+		    reinterpret_cast<const T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data) + record.row...
+		);
 	}
 
 	template<typename... T>
 	inline view<T...> world::view() {
-	    return ecs::view<T...>(archetypes.data(), archetypes.data() + archetypes.size());
+		return ecs::view<T...>(archetypes.data(), archetypes.data() + archetypes.size());
+	}
+
+	template<typename... T>
+	inline view<const T...> world::view() const {
+		return ecs::view<const T...>(archetypes.data(), archetypes.data() + archetypes.size());
 	}
 
 } // namespace ecs

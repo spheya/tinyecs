@@ -45,9 +45,6 @@ namespace ecs {
 		entity remove_entity(size_t row);
 
 	private:
-		template<typename... T, size_t... I>
-		void init_impl(std::index_sequence<I...> /* seq */);
-
 		void reallocate(size_t newCapacity);
 
 	public:
@@ -60,6 +57,7 @@ namespace ecs {
 
 	template<typename T, size_t S>
 	inline void column::init() {
+	    static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
 		destroy = [](const void* t) { static_cast<const T*>(t)->~T(); };
 		mass_destroy = [](const void* t, size_t count) {
 			for(size_t i = 0; i < count; ++i) static_cast<const T*>(t)[i].~T();
@@ -83,10 +81,10 @@ namespace ecs {
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
-    	for(int i = 0; i < signature.size(); ++i) {
-    	    columns[i].mass_destroy(columns[i].data, size);
-    	    free(columns[i].data);
-    	}
+		for(int i = 0; i < signature.size(); ++i) {
+			columns[i].mass_destroy(columns[i].data, size);
+			free(columns[i].data);
+		}
 		free(entities);
 		delete[] columns;
 
@@ -104,8 +102,8 @@ namespace ecs {
 
 	inline archetype::~archetype() {
 		for(int i = 0; i < signature.size(); ++i) {
-		    columns[i].mass_destroy(columns[i].data, size);
-		    free(columns[i].data);
+			columns[i].mass_destroy(columns[i].data, size);
+			free(columns[i].data);
 		}
 		free(entities);
 		delete[] columns;
@@ -113,12 +111,19 @@ namespace ecs {
 
 	template<typename... T>
 	inline void archetype::init() {
+		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature only allows non-reference, unqualified types");
 		columns = new column[sizeof...(T)];
-		init_impl<std::remove_cvref_t<T>...>(std::index_sequence_for<T...>());
+
+		constexpr size_t initial_capacity = 8;
+		(columns[signature.index_of<T>()].template init<T, initial_capacity>(), ...);
+		capacity = initial_capacity;
+		entities = static_cast<entity*>(malloc(capacity * sizeof(entity)));
 	}
 
 	template<typename... T>
 	inline size_t archetype::add_entity(entity entity, T&&... components) {
+		static_assert(is_unique_v<std::remove_cvref_t<T>...>, "Archetype signature must only contain unique types");
 		if(size + 1 > capacity) reallocate(capacity * 2);
 		entities[size] = entity;
 		(
@@ -146,14 +151,6 @@ namespace ecs {
 			column.move(column.data + column.element_size * row, column.data + column.element_size * size);
 		}
 		return entities[row];
-	}
-
-	template<typename... T, size_t... I>
-	inline void archetype::init_impl(std::index_sequence<I...> /* seq */) {
-		constexpr size_t initial_capacity = 8;
-		(columns[I].init<T, initial_capacity>(), ...);
-		capacity = initial_capacity;
-		entities = static_cast<entity*>(malloc(capacity * sizeof(entity)));
 	}
 
 	inline void archetype::reallocate(size_t newCapacity) {
