@@ -19,7 +19,7 @@ namespace ecs {
 	class world {
 	public:
 		template<typename... T>
-		[[nodiscard]] entity add_entity(T&&... components);
+		entity add_entity(T&&... components);
 
 		void remove_entity(entity e);
 
@@ -30,7 +30,7 @@ namespace ecs {
 		[[nodiscard]] T& get_component(entity e);
 
 		template<typename T>
-		[[nodiscard]] T& get_component(entity e) const;
+		[[nodiscard]] const T& get_component(entity e) const;
 
 		template<typename... T>
 		[[nodiscard]] entity_view<T...> get_components(entity e);
@@ -92,7 +92,7 @@ namespace ecs {
 	}
 
 	template<typename T>
-	inline T& world::get_component(entity e) const {
+	inline const T& world::get_component(entity e) const {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<T>()));

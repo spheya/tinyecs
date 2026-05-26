@@ -24,9 +24,11 @@ namespace ecs {
 
 		// todo: get by type
 
-	private:
 		entity_view<T, Rest...>& operator++() noexcept;
 		entity_view<T, Rest...>& operator--() noexcept;
+
+		bool operator==(const entity_view<T, Rest...>& other) const noexcept;
+		bool operator!=(const entity_view<T, Rest...>& other) const noexcept;
 
 	private:
 		T* m_ptr = nullptr;
@@ -35,9 +37,6 @@ namespace ecs {
 
 	template<typename T>
 	class entity_view<T> {
-		template<typename... Ty>
-		friend class view_iterator;
-
 	public:
 		entity_view() noexcept = default;
 		entity_view(T* ptr) noexcept;
@@ -45,9 +44,11 @@ namespace ecs {
 		template<size_t I>
 		T& get() const noexcept;
 
-	private:
 		entity_view<T>& operator++() noexcept;
 		entity_view<T>& operator--() noexcept;
+
+		bool operator==(const entity_view<T>& other) const noexcept;
+		bool operator!=(const entity_view<T>& other) const noexcept;
 
 	private:
 		T* m_ptr = nullptr;
@@ -124,6 +125,16 @@ namespace ecs {
 		return *this;
 	}
 
+	template<typename T, typename... Rest>
+	bool entity_view<T, Rest...>::operator==(const entity_view<T, Rest...>& other) const noexcept {
+		return m_ptr == other.m_ptr; // Only comparing the address of the first component, which should be enough.
+	}
+
+	template<typename T, typename... Rest>
+	bool entity_view<T, Rest...>::operator!=(const entity_view<T, Rest...>& other) const noexcept {
+		return m_ptr != other.m_ptr; // Only comparing the address of the first component, which should be enough.
+	}
+
 	template<typename T>
 	inline entity_view<T>::entity_view(T* ptr) noexcept : m_ptr(ptr) {}
 
@@ -146,17 +157,27 @@ namespace ecs {
 		return *this;
 	}
 
+	template<typename T>
+	bool entity_view<T>::operator==(const entity_view<T>& other) const noexcept {
+		return m_ptr == other.m_ptr; // Only comparing the address of the first component, which should be enough.
+	}
+
+	template<typename T>
+	bool entity_view<T>::operator!=(const entity_view<T>& other) const noexcept {
+		return m_ptr != other.m_ptr; // Only comparing the address of the first component, which should be enough.
+	}
+
 	template<typename... T>
 	view_iterator<T...>::view_iterator(const archetype* begin, const archetype* end) noexcept : m_archetype(begin), m_archetype_end(end) {
 		// todo: avoid duplicate code
 		// todo: make an ecs::view pre-calculate the begin and end archetype
-		while(!m_archetype->signature.contains<T...>()) {
+		while(!m_archetype->signature.contains<std::remove_cvref_t<T>...>()) {
 			if(++m_archetype == m_archetype_end) {
 				m_entity.m_ptr = nullptr;
 				return;
 			}
 		}
-		m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<T>())].data)...);
+		m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<std::remove_cvref_t<T>>())].data)...);
 	}
 
 	template<typename... T>
@@ -178,8 +199,8 @@ namespace ecs {
 					m_entity.m_ptr = nullptr;
 					return *this;
 				}
-			} while(!m_archetype->signature.contains<T...>());
-			m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<T>())].data)...);
+			} while(!m_archetype->signature.contains<std::remove_cvref_t<T>...>());
+			m_entity = entity_view<T...>(reinterpret_cast<T*>(m_archetype->columns[m_archetype->signature.getIndex(type_id<std::remove_cvref_t<T>>())].data)...);
 		} else {
 			++m_entity;
 		}
@@ -195,12 +216,12 @@ namespace ecs {
 
 	template<typename... T>
 	bool view_iterator<T...>::operator==(const view_iterator<T...>& other) const noexcept {
-		return m_entity.m_ptr == other.m_entity.m_ptr; // Only comparing the address of the first component, which should be enough.
+		return m_entity == other.m_entity; // Only comparing the address of the first component, which should be enough.
 	}
 
 	template<typename... T>
 	bool view_iterator<T...>::operator!=(const view_iterator<T...>& other) const noexcept {
-		return m_entity.m_ptr != other.m_entity.m_ptr; // Only comparing the address of the first component, which should be enough.
+		return m_entity != other.m_entity; // Only comparing the address of the first component, which should be enough.
 	}
 
 	template<typename... T>
