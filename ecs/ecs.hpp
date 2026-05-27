@@ -6,7 +6,7 @@
 
 #include "archetype.hpp"
 #include "signature.hpp"
-#include "types.hpp"
+#include "meta.hpp"
 #include "view.hpp"
 
 namespace ecs {
@@ -102,7 +102,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
-		return reinterpret_cast<T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data)[record.row];
+		return archetype.data<std::remove_const_t<T>>()[record.row];
 	}
 
 	template<typename T>
@@ -110,15 +110,15 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
-		return reinterpret_cast<const T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data)[record.row];
+		return archetype.data<std::remove_const_t<T>>()[record.row];
 	}
 
 	template<typename... T>
 	inline entity_view<T...> world::get_components(entity e) {
 		entity_record record = entities.at(e);
-		const archetype& archetype = archetypes[record.archetype];
+		archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains<T...>());
-		return entity_view<T...>(reinterpret_cast<T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data) + record.row...);
+		return entity_view<T...>(archetype.data<std::remove_const_t<T>>() + record.row...);
 	}
 
 	template<typename... T>
@@ -126,9 +126,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains<std::remove_const_t<T>...>());
-		return entity_view<const T...>(
-		    reinterpret_cast<const T*>(archetype.columns[archetype.signature.index_of<std::remove_const_t<T>>()].data) + record.row...
-		);
+		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>() + record.row...);
 	}
 
 	template<typename... T>

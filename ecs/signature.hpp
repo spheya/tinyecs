@@ -6,8 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "ecs/type_info.hpp"
-#include "types.hpp"
+#include "meta.hpp"
 
 namespace ecs {
 

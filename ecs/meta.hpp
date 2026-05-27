@@ -6,7 +6,13 @@
 
 namespace ecs {
 
-	template<typename... T>
+    using type_index = uint32_t;
+    using entity = uint32_t;
+	using component_id = type_index;
+
+	constexpr entity null_entity = entity(0);
+
+    template<typename... T>
 	struct is_unique;
 
 	template<>
@@ -18,7 +24,8 @@ namespace ecs {
 	template<typename... T>
 	constexpr bool is_unique_v = is_unique<T...>::value;
 
-	using type_index = uint32_t;
+	template<typename T>
+	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, T&>;
 
 	namespace internal {
 		[[nodiscard]] inline type_index next_type_index() noexcept {

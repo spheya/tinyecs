@@ -7,8 +7,7 @@
 
 #include "macros.hpp"
 #include "signature.hpp"
-#include "type_info.hpp"
-#include "types.hpp"
+#include "meta.hpp"
 
 namespace ecs {
 
@@ -44,6 +43,15 @@ namespace ecs {
 		// returns the entity that took its place or `null_entity` if the archetype is empty
 		entity remove_entity(size_t row);
 
+		template<typename T>
+		[[nodiscard]] T* data();
+
+		template<typename T>
+		[[nodiscard]] const T* data() const;
+
+		template<typename... T>
+		[[nodiscard]] bool contains() const;
+
 	private:
 		void reallocate(size_t newCapacity);
 
@@ -57,7 +65,7 @@ namespace ecs {
 
 	template<typename T, size_t S>
 	inline void column::init() {
-	    static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
+		static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
 		destroy = [](const void* t) { static_cast<const T*>(t)->~T(); };
 		mass_destroy = [](const void* t, size_t count) {
 			for(size_t i = 0; i < count; ++i) static_cast<const T*>(t)[i].~T();
@@ -155,6 +163,36 @@ namespace ecs {
 			column.move(column.data + column.element_size * row, column.data + column.element_size * size);
 		}
 		return entities[row];
+	}
+
+	template<typename T>
+	T* archetype::data() {
+		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
+			return entities;
+		} else {
+			return reinterpret_cast<T*>(columns[signature.index_of<std::remove_const_t<T>>()].data);
+		}
+	}
+
+	template<typename T>
+	const T* archetype::data() const {
+		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
+			return entities;
+		} else {
+			return reinterpret_cast<const T*>(columns[signature.index_of<std::remove_const_t<T>>()].data);
+		}
+	}
+
+	template<typename... T>
+	bool archetype::contains() const {
+		return ([&]() {
+			if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
+				return true;
+			} else {
+				return signature.contains<T>();
+			}
+		}()
+		 && ...);
 	}
 
 	inline void archetype::reallocate(size_t newCapacity) {
