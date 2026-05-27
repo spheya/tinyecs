@@ -29,21 +29,21 @@ int main() {
 	graphics graphics("nbody");
 	ecs::world world;
 
-	for(int i = 0; i < 2000; ++i) {
+	for(int i = 0; i < 1000; ++i) {
 		world.add_entity(
-		    body{ .pos_x = random_float(-2000.0f, 2000.0f), .pos_y = random_float(-2000.0f, 2000.0f), .mass = 1.0f / exp(-random_float(0.0f, 5.0f)) + 1.0f },
-		    velocity{ .x = random_float(-1000.0f, 1000.0f), .y = random_float(-1000.0f, 1000.0f) },
+		    body{ .pos_x = random_float(-2000.0f, 2000.0f), .pos_y = random_float(-2000.0f, 2000.0f), .mass = pow(random_float(), 10.0f) * 10000.0 + 10.0f },
+		    velocity{ .x = random_float(-10000.0f, 10000.0f), .y = random_float(-10000.0f, 10000.0f) },
 		    renderer{ .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f }
 		);
 	}
 	ecs::entity sun = world.add_entity(
-	    body{ .pos_x = 0.0, .pos_y = 0.0, .mass = 8000.0 }, renderer{ .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f }, velocity{ .x = 0.0f, .y = 0.0f }
+	    body{ .pos_x = 0.0, .pos_y = 0.0, .mass = 80000.0 }, renderer{ .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = 1.0f }, velocity{ .x = 0.0f, .y = 0.0f }
 	);
 
 	std::vector<instance> instances;
 	std::vector<ecs::entity> removal;
 	while(!graphics.shouldClose()) {
-		constexpr double dt = 1.0 / 60.0;
+		constexpr double dt = 0.01 / 60.0;
 		constexpr double grav_constant = 50000.0;
 
 		// Update velocities
@@ -106,7 +106,7 @@ int main() {
 		instances.clear();
 		for(auto&& [body, renderer] : world.view<const body, const renderer>())
 			instances.emplace_back(
-			    transform{ .pos_x = float(body.pos_x - highest_mass_x) * 0.2f, .pos_y = float(body.pos_y - highest_mass_y) * 0.2f, .size = float(pow(body.mass, 0.333f)) },
+			    transform{ .pos_x = float(body.pos_x - highest_mass_x) * 0.07f, .pos_y = float(body.pos_y - highest_mass_y) * 0.07f, .size = float(pow(body.mass, 0.333f) * 0.5) },
 			    renderer
 			);
 		graphics.draw(instances);
