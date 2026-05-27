@@ -23,9 +23,10 @@ namespace ecs {
 		entity_view(T* ptr, Rest*... rest) noexcept;
 
 		template<size_t I>
-		component_reference<std::tuple_element_t<I, entity_view<T, Rest...>>> get() const noexcept; // todo: dont return entity by reference
+		component_reference<std::tuple_element_t<I, entity_view<T, Rest...>>> get() const noexcept;
 
-		// todo: get by type
+		template<typename Ty>
+		component_reference<Ty> get() const noexcept;
 
 		entity_view<T, Rest...>& operator++() noexcept;
 		entity_view<T, Rest...>& operator--() noexcept;
@@ -40,6 +41,9 @@ namespace ecs {
 
 	template<typename T>
 	class entity_view<T> {
+		template<typename... Ty>
+		friend class view_iterator;
+
 		static_assert(std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>>, "View must only contain non-reference and non-volatile types");
 
 	public:
@@ -48,6 +52,9 @@ namespace ecs {
 
 		template<size_t I>
 		component_reference<T> get() const noexcept;
+
+		template<typename Ty>
+		component_reference<Ty> get() const noexcept;
 
 		entity_view<T>& operator++() noexcept;
 		entity_view<T>& operator--() noexcept;
@@ -127,6 +134,16 @@ namespace ecs {
 	}
 
 	template<typename T, typename... Rest>
+	template<typename Ty>
+	inline component_reference<Ty> entity_view<T, Rest...>::get() const noexcept {
+		if constexpr (std::is_same<T, Ty>()) {
+		    return *m_ptr;
+		} else{
+            return m_rest.template get<Ty>();
+		}
+	}
+
+	template<typename T, typename... Rest>
 	inline entity_view<T, Rest...>& entity_view<T, Rest...>::operator++() noexcept {
 		++m_ptr;
 		++m_rest;
@@ -157,6 +174,13 @@ namespace ecs {
 	template<size_t I>
 	inline component_reference<T> entity_view<T>::get() const noexcept {
 		static_assert(I == 0, "Index out of bounds");
+		return *m_ptr;
+	}
+
+	template<typename T>
+	template<typename Ty>
+	inline component_reference<Ty> entity_view<T>::get() const noexcept {
+		static_assert(std::is_same_v<T, Ty>, "Entity view must contain requested type");
 		return *m_ptr;
 	}
 

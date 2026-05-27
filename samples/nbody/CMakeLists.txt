@@ -1,0 +1,3 @@
+add_executable(tinyecs_sample_nbody main.cpp)
+target_link_libraries(tinyecs_sample_nbody PUBLIC tinyecs tinyecs_sample_common)
+set_property(TARGET tinyecs_sample_nbody PROPERTY CXX_STANDARD 20)

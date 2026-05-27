@@ -196,10 +196,10 @@ namespace ecs {
 	}
 
 	inline void archetype::reallocate(size_t newCapacity) {
-		realloc(entities, newCapacity);
+		entities = static_cast<entity*>(realloc(entities, newCapacity * sizeof(entity)));
 		for(int i = 0; i < signature.size(); ++i) {
 			column& column = columns[i];
-			char* newData = reinterpret_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
+			char* newData = static_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
 			column.mass_move(newData, column.data, size);
 			free(column.data);
 			column.data = newData;

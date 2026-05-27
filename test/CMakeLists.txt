@@ -11,6 +11,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 file(GLOB_RECURSE TEST_SOURCES *.cpp)
-add_executable(ecs_tests ${TEST_SOURCES})
-target_link_libraries(ecs_tests PRIVATE ecs GTest::gtest_main)
-gtest_discover_tests(ecs_tests)
+add_executable(tinyecs_tests ${TEST_SOURCES})
+target_link_libraries(tinyecs_tests PRIVATE tinyecs GTest::gtest_main)
+gtest_discover_tests(tinyecs_tests)
