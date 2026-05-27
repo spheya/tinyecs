@@ -16,4 +16,4 @@ add_library(tinyecs_sample_common INTERFACE)
 target_include_directories(tinyecs_sample_common SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tinyecs_sample_common INTERFACE glfw)
 
-add_subdirectory(nbody)
+add_subdirectory(bouncing)
