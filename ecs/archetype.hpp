@@ -113,6 +113,7 @@ namespace ecs {
 	inline void archetype::init() {
 		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
 		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature only allows non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
 		columns = new column[sizeof...(T)];
 
 		constexpr size_t initial_capacity = 8;
@@ -124,12 +125,15 @@ namespace ecs {
 	template<typename... T>
 	inline size_t archetype::add_entity(entity entity, T&&... components) {
 		static_assert(is_unique_v<std::remove_cvref_t<T>...>, "Archetype signature must only contain unique types");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, ecs::entity> || ...), "Archetype signature cannot contain entity type");
+		assert(sizeof...(T) == signature.size());
+
 		if(size + 1 > capacity) reallocate(capacity * 2);
 		entities[size] = entity;
 		(
 		    [&] {
 			    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) {
-				    return c.component_id == type_id<std::remove_cvref_t<T>>();
+				    return c.component_id == type_id<std::remove_cvref_t<T>>(); // todo: compare performance of this vs signature::index_of
 			    });
 			    assert(it != columns + signature.size());
 			    reinterpret_cast<std::remove_cvref_t<T>*>(it->data)[size] = std::forward<T>(components);
