@@ -1,3 +1,3 @@
 add_executable(tinyecs_sample_bouncing main.cpp)
+init_target(tinyecs_sample_bouncing)
 target_link_libraries(tinyecs_sample_bouncing PUBLIC tinyecs tinyecs_sample_common)
-set_property(TARGET tinyecs_sample_bouncing PROPERTY CXX_STANDARD 20)

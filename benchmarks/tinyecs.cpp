@@ -17,7 +17,7 @@ struct Renderer {
 static void entity_creation(benchmark::State& state) {
 	for(auto _ : state) {
 		ecs::world world;
-		for(int i = 0; i < 1000; ++i) ecs::entity entity = world.add_entity(Position{}, Velocity{}, Renderer{});
+		for(int i = 0; i < 1000; ++i) world.add_entity(Position{}, Velocity{}, Renderer{});
 		benchmark::DoNotOptimize(world);
 		benchmark::ClobberMemory();
 	}

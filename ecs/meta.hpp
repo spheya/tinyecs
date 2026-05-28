@@ -40,16 +40,11 @@ namespace ecs {
 	template<typename T>
 	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, reference<T>>;
 
-	namespace internal {
-		[[nodiscard]] inline type_index next_type_index() noexcept {
-			static std::atomic<type_index> idx = 0;
-			return idx.fetch_add(1, std::memory_order_relaxed);
-		}
-	} // namespace internal
+	inline static std::atomic<type_index> type_counter; // NOLINT
 
 	template<typename T>
 	[[nodiscard]] inline type_index type_id() noexcept {
-		static type_index idx = internal::next_type_index();
+		static const type_index idx = type_counter.fetch_add(1, std::memory_order_relaxed);
 		return idx;
 	}
 

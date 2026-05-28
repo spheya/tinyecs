@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(ecs)
 
+include(tinyecs.cmake)
+
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" TINYECS_TOP_LEVEL)
 
 option(TINYECS_SAMPLES "Build tinyecs samples" ${TINYECS_TOP_LEVEL})

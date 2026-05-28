@@ -99,7 +99,7 @@ namespace ecs {
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
-		for(int i = 0; i < signature.size(); ++i) {
+		for(int i = 0; i < int(signature.size()); ++i) {
 			columns[i].mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
@@ -119,7 +119,7 @@ namespace ecs {
 	}
 
 	inline archetype::~archetype() {
-		for(int i = 0; i < signature.size(); ++i) {
+		for(int i = 0; i < int(signature.size()); ++i) {
 			if(!columns->is_trivially_copyable_data()) columns[i].mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
@@ -167,7 +167,7 @@ namespace ecs {
 		--size;
 		if(size == 0) return null_entity;
 		entities[row] = entities[size];
-		for(int i = 0; i < signature.size(); ++i) {
+		for(int i = 0; i < int(signature.size()); ++i) {
 			column& column = columns[i];
 			if(column.is_trivially_copyable_data()) {
 			    memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
@@ -210,7 +210,7 @@ namespace ecs {
 
 	inline void archetype::reallocate(size_t newCapacity) {
 		entities = static_cast<entity*>(realloc(entities, newCapacity * sizeof(entity)));
-		for(int i = 0; i < signature.size(); ++i) {
+		for(int i = 0; i < int(signature.size()); ++i) {
 			column& column = columns[i];
 			if(column.is_trivially_copyable_data()) {
 				column.data = static_cast<char*>(realloc(column.data, newCapacity * column.element_size));

@@ -55,7 +55,7 @@ namespace ecs {
 	inline size_t signature::index_of(component_id component) const noexcept {
 		auto it = std::ranges::find(components.begin(), components.end(), component);
 		assert(it != components.end());
-		return it - components.begin(); // todo: binary search or sth, make use of the fact this list is sorted
+		return size_t(it - components.begin()); // todo: binary search or sth, make use of the fact this list is sorted
 	}
 
 	inline size_t signature::size() const noexcept {
