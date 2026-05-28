@@ -10,6 +10,7 @@ FetchContent_Declare(
   URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
 )
 FetchContent_MakeAvailable(googletest)
+target_compile_options(gtest PRIVATE -w)
 
 file(GLOB_RECURSE TEST_SOURCES *.cpp)
 add_executable(tinyecs_tests ${TEST_SOURCES})

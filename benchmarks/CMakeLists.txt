@@ -11,6 +11,7 @@ set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_WERROR OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(benchmark)
+target_compile_options(benchmark PRIVATE -w)
 
 add_executable(tinyecs_benchmarks tinyecs.cpp)
 target_link_libraries(tinyecs_benchmarks PRIVATE tinyecs benchmark::benchmark benchmark::benchmark_main)

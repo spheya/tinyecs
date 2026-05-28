@@ -1,6 +1,7 @@
 include(FetchContent)
 FetchContent_Declare(
     glfw
+    SYSTEM EXCLUDE_FROM_ALL
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG 3.4
 )
