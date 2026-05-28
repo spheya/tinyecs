@@ -13,8 +13,8 @@ namespace ecs {
 	struct column {
 		void (*destroy)(const void* ptr);
 		void (*mass_destroy)(const void* ptr, size_t count);
-		void (*mass_move)(void* RESTRICT dst, void* RESTRICT src, size_t count);
 		void (*move)(void* RESTRICT dst, void* RESTRICT src);
+		void (*mass_move)(void* RESTRICT dst, void* RESTRICT src, size_t count);
 
 		size_t element_size;
 		component_id component_id;
