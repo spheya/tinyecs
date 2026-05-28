@@ -16,13 +16,13 @@
 
 namespace ecs {
 
-    using type_index = uint32_t;
-    using entity = uint32_t;
+	using type_index = uint32_t;
+	using entity = uint32_t;
 	using component_id = type_index;
 
 	constexpr entity null_entity = entity(0);
 
-    template<typename... T>
+	template<typename... T>
 	struct is_unique;
 
 	template<>
@@ -35,7 +35,10 @@ namespace ecs {
 	constexpr bool is_unique_v = is_unique<T...>::value;
 
 	template<typename T>
-	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, T&>;
+	using reference = std::conditional_t<std::is_const_v<T> && std::is_trivially_copyable_v<T> && sizeof(T) <= 2 * sizeof(void*), T, T&>;
+
+	template<typename T>
+	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, reference<T>>;
 
 	namespace internal {
 		[[nodiscard]] inline type_index next_type_index() noexcept {

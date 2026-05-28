@@ -30,10 +30,10 @@ namespace ecs {
 		[[nodiscard]] bool has_components(entity e) const noexcept;
 
 		template<typename T>
-		[[nodiscard]] T& get_component(entity e);
+		[[nodiscard]] reference<T> get_component(entity e);
 
 		template<typename T>
-		[[nodiscard]] const T& get_component(entity e) const;
+		[[nodiscard]] reference<const T> get_component(entity e) const;
 
 		template<typename... T>
 		[[nodiscard]] entity_view<T...> get_components(entity e);
@@ -98,7 +98,7 @@ namespace ecs {
 	}
 
 	template<typename T>
-	inline T& world::get_component(entity e) {
+	inline reference<T> world::get_component(entity e) {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
@@ -106,7 +106,7 @@ namespace ecs {
 	}
 
 	template<typename T>
-	inline const T& world::get_component(entity e) const {
+	inline reference<const T> world::get_component(entity e) const {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
