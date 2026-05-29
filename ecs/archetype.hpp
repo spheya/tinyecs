@@ -25,6 +25,7 @@ namespace ecs {
 		void init();
 
 		[[nodiscard]] bool is_trivially_copyable_data() const noexcept;
+		[[nodiscard]] bool is_trivially_destructable_data() const noexcept;
 	};
 
 	class archetype {
@@ -69,14 +70,18 @@ namespace ecs {
 	inline void column::init() {
 		static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
 
-		if constexpr(std::is_trivially_copyable_v<T>) {
+		if constexpr(std::is_trivially_destructible_v<T>) {
 			destroy = nullptr;
 		} else {
 			destroy = [](const void* t) { std::destroy_at(static_cast<T*>(t)); };
 			mass_destroy = [](const void* t, size_t count) {
 				for(size_t i = 0; i < count; ++i) std::destroy_at(static_cast<T*>(t) + i);
 			};
+		}
 
+		if constexpr(std::is_trivially_copyable_v<T>) {
+			move = nullptr;
+		} else {
 			move = [](void* RESTRICT dst, void* RESTRICT src) { std::construct_at(static_cast<T*>(dst), std::move(*static_cast<T*>(src))); };
 			mass_move = [](void* RESTRICT dst, void* RESTRICT src, size_t count) {
 				for(size_t i = 0; i < count; ++i) std::construct_at(static_cast<T*>(dst) + i, std::move(*static_cast<T*>(src)));
@@ -90,6 +95,10 @@ namespace ecs {
 	}
 
 	inline bool column::is_trivially_copyable_data() const noexcept {
+		return move == nullptr;
+	}
+
+	inline bool column::is_trivially_destructable_data() const noexcept {
 		return destroy == nullptr;
 	}
 
@@ -155,7 +164,7 @@ namespace ecs {
 				    return c.component_id == type_id<std::remove_cvref_t<T>>(); // todo: compare performance of this vs signature::index_of
 			    });
 			    assert(it != columns + signature.size());
-				std::construct_at(reinterpret_cast<std::remove_cvref_t<T>*>(it->data) + size, std::forward<T>(components));
+			    std::construct_at(reinterpret_cast<std::remove_cvref_t<T>*>(it->data) + size, std::forward<T>(components));
 		    }(),
 		    ...
 		);
@@ -173,7 +182,7 @@ namespace ecs {
 			if(column.is_trivially_copyable_data()) {
 				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
 			} else {
-				column.destroy(column.data + column.element_size * row);
+				if(!column.is_trivially_destructable_data()) column.destroy(column.data + column.element_size * row);
 				column.move(column.data + column.element_size * row, column.data + column.element_size * size);
 			}
 		}
@@ -218,6 +227,7 @@ namespace ecs {
 			} else {
 				char* newData = static_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
 				column.mass_move(newData, column.data, size);
+				if(!column.is_trivially_destructable_data()) column.mass_destroy(column.data, size);
 				free(column.data);
 				column.data = newData;
 			}
