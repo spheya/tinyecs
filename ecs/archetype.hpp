@@ -8,14 +8,12 @@
 
 #include "meta.hpp"
 #include "signature.hpp"
+#include "component.hpp"
 
 namespace ecs {
 
 	struct column {
-		void (*destroy)(const void* ptr);
-		void (*mass_destroy)(const void* ptr, size_t count);
-		void (*move)(void* RESTRICT dst, void* RESTRICT src);
-		void (*mass_move)(void* RESTRICT dst, void* RESTRICT src, size_t count);
+		component_ops ops;
 
 		size_t element_size;
 		component_id component_id;
@@ -70,23 +68,7 @@ namespace ecs {
 	inline void column::init() {
 		static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
 
-		if constexpr(std::is_trivially_destructible_v<T>) {
-			destroy = nullptr;
-		} else {
-			destroy = [](const void* t) { std::destroy_at(static_cast<T*>(t)); };
-			mass_destroy = [](const void* t, size_t count) {
-				for(size_t i = 0; i < count; ++i) std::destroy_at(static_cast<T*>(t) + i);
-			};
-		}
-
-		if constexpr(std::is_trivially_copyable_v<T>) {
-			move = nullptr;
-		} else {
-			move = [](void* RESTRICT dst, void* RESTRICT src) { std::construct_at(static_cast<T*>(dst), std::move(*static_cast<T*>(src))); };
-			mass_move = [](void* RESTRICT dst, void* RESTRICT src, size_t count) {
-				for(size_t i = 0; i < count; ++i) std::construct_at(static_cast<T*>(dst) + i, std::move(*static_cast<T*>(src)));
-			};
-		}
+		ops = create_component_operations<T>();
 
 		element_size = sizeof(T);
 		component_id = type_id<T>();
@@ -94,27 +76,22 @@ namespace ecs {
 		data = static_cast<char*>(malloc(S * sizeof(T)));
 	}
 
-	inline bool column::is_trivially_copyable_data() const noexcept {
-		return move == nullptr;
-	}
-
-	inline bool column::is_trivially_destructable_data() const noexcept {
-		return destroy == nullptr;
-	}
-
 	inline archetype::archetype(archetype&& other) noexcept :
 	    signature(std::move(other.signature)), size(other.size), capacity(other.capacity), entities(other.entities), columns(other.columns) {
+		other.signature = {};
 		other.entities = nullptr;
 		other.columns = nullptr;
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
+		if(this == &other) return *this;
+
 		for(int i = 0; i < int(signature.size()); ++i) {
-			columns[i].mass_destroy(columns[i].data, size);
+			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
 		free(entities);
-		delete[] columns;
+		free(columns);
 
 		signature = std::move(other.signature);
 		size = other.size;
@@ -122,6 +99,7 @@ namespace ecs {
 		entities = other.entities;
 		columns = other.columns;
 
+		other.signature = {};
 		other.entities = nullptr;
 		other.columns = nullptr;
 
@@ -130,7 +108,7 @@ namespace ecs {
 
 	inline archetype::~archetype() {
 		for(int i = 0; i < int(signature.size()); ++i) {
-			if(!columns->is_trivially_copyable_data()) columns[i].mass_destroy(columns[i].data, size);
+			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
 		free(entities);
@@ -179,11 +157,11 @@ namespace ecs {
 		entities[row] = entities[size];
 		for(int i = 0; i < int(signature.size()); ++i) {
 			column& column = columns[i];
-			if(column.is_trivially_copyable_data()) {
+			if(column.ops.is_trivially_copyable()) {
 				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
 			} else {
-				if(!column.is_trivially_destructable_data()) column.destroy(column.data + column.element_size * row);
-				column.move(column.data + column.element_size * row, column.data + column.element_size * size);
+				if(!column.ops.is_trivially_destructible()) column.ops.destroy(column.data + column.element_size * row);
+				column.ops.move_construct(column.data + column.element_size * row, column.data + column.element_size * size);
 			}
 		}
 		return entities[row];
@@ -222,12 +200,12 @@ namespace ecs {
 		entities = static_cast<entity*>(realloc(entities, newCapacity * sizeof(entity)));
 		for(int i = 0; i < int(signature.size()); ++i) {
 			column& column = columns[i];
-			if(column.is_trivially_copyable_data()) {
+			if(column.ops.is_trivially_copyable()) {
 				column.data = static_cast<char*>(realloc(column.data, newCapacity * column.element_size));
 			} else {
 				char* newData = static_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
-				column.mass_move(newData, column.data, size);
-				if(!column.is_trivially_destructable_data()) column.mass_destroy(column.data, size);
+				column.ops.mass_move_construct(newData, column.data, size);
+				if(!column.ops.is_trivially_destructible()) column.ops.mass_destroy(column.data, size);
 				free(column.data);
 				column.data = newData;
 			}

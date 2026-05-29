@@ -16,6 +16,7 @@
 
 namespace ecs {
 
+	using size_type = size_t;
 	using type_index = uint32_t;
 	using entity = uint32_t;
 	using component_id = type_index;
