@@ -161,7 +161,7 @@ namespace ecs {
 				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
 			} else {
 				if(!column.ops.is_trivially_destructible()) column.ops.destroy(column.data + column.element_size * row);
-				column.ops.move_construct(column.data + column.element_size * row, column.data + column.element_size * size);
+				column.ops.relocate(column.data + column.element_size * row, column.data + column.element_size * size);
 			}
 		}
 		return entities[row];
@@ -204,8 +204,7 @@ namespace ecs {
 				column.data = static_cast<char*>(realloc(column.data, newCapacity * column.element_size));
 			} else {
 				char* newData = static_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
-				column.ops.mass_move_construct(newData, column.data, size);
-				if(!column.ops.is_trivially_destructible()) column.ops.mass_destroy(column.data, size);
+				column.ops.mass_relocate(newData, column.data, size);
 				free(column.data);
 				column.data = newData;
 			}
