@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -71,14 +72,14 @@ namespace ecs {
 		if constexpr(std::is_trivially_copyable_v<T>) {
 			destroy = nullptr;
 		} else {
-			destroy = [](const void* t) { static_cast<const T*>(t)->~T(); };
+			destroy = [](const void* t) { std::destroy_at(static_cast<T*>(t)); };
 			mass_destroy = [](const void* t, size_t count) {
-				for(size_t i = 0; i < count; ++i) static_cast<const T*>(t)[i].~T();
+				for(size_t i = 0; i < count; ++i) std::destroy_at(static_cast<T*>(t) + i);
 			};
 
-			move = [](void* RESTRICT dst, void* RESTRICT src) { new(dst) T(std::move(*static_cast<T*>(src))); };
+			move = [](void* RESTRICT dst, void* RESTRICT src) { std::construct_at(static_cast<T*>(dst), std::move(*static_cast<T*>(src))); };
 			mass_move = [](void* RESTRICT dst, void* RESTRICT src, size_t count) {
-				for(size_t i = 0; i < count; ++i) new(static_cast<T*>(dst) + i) T(std::move(static_cast<T*>(src)[i]));
+				for(size_t i = 0; i < count; ++i) std::construct_at(static_cast<T*>(dst) + i, std::move(*static_cast<T*>(src)));
 			};
 		}
 
@@ -154,7 +155,7 @@ namespace ecs {
 				    return c.component_id == type_id<std::remove_cvref_t<T>>(); // todo: compare performance of this vs signature::index_of
 			    });
 			    assert(it != columns + signature.size());
-			    reinterpret_cast<std::remove_cvref_t<T>*>(it->data)[size] = std::forward<T>(components);
+				std::construct_at(reinterpret_cast<std::remove_cvref_t<T>*>(it->data) + size, std::forward<T>(components));
 		    }(),
 		    ...
 		);
@@ -170,7 +171,7 @@ namespace ecs {
 		for(int i = 0; i < int(signature.size()); ++i) {
 			column& column = columns[i];
 			if(column.is_trivially_copyable_data()) {
-			    memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
+				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
 			} else {
 				column.destroy(column.data + column.element_size * row);
 				column.move(column.data + column.element_size * row, column.data + column.element_size * size);

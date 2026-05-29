@@ -19,10 +19,7 @@ function(init_target name)
 			-Wno-c99-compat
 
 			-Wno-unsafe-buffer-usage         # it's stupid
-			-Wno-unused-macros               # seems to be incorrect sometimes?
-			-Wno-padded                      # I don't really care about this
-			-Wno-weak-vtables                # annoying
-			-Wno-shadow-field-in-constructor # I like doing this
+			-Wno-shadow-field-in-constructor # i like doing this
 
 			-fdiagnostics-show-template-tree
 			-fdiagnostics-show-option
