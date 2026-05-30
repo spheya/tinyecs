@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "archetype.hpp"
+#include "small_vector.hpp"
 
 namespace ecs {
 
@@ -81,7 +82,7 @@ namespace ecs {
 
 	public:
 		view_iterator() noexcept = default;
-		view_iterator(archetype* begin, archetype* end) noexcept;
+		view_iterator(archetype* const* begin, archetype* const* end) noexcept;
 
 		reference operator*() const noexcept;
 		pointer operator->() const noexcept;
@@ -93,10 +94,10 @@ namespace ecs {
 		bool operator!=(const view_iterator<T...>& other) const noexcept;
 
 	private:
-		archetype* m_archetype = nullptr;
-		archetype* m_archetype_end = nullptr;
 		entity_view<T...> m_entity;
 		size_t m_row = 0;
+		archetype* const* m_archetype = nullptr;
+		archetype* const* m_end = nullptr;
 	};
 
 	template<typename... T>
@@ -116,8 +117,7 @@ namespace ecs {
 		iterator end() const noexcept;
 
 	private:
-		archetype* m_begin;
-		archetype* m_end;
+		small_vector<archetype*, 8> m_archetypes;
 	};
 
 	template<typename T, typename... Rest>
@@ -136,10 +136,10 @@ namespace ecs {
 	template<typename T, typename... Rest>
 	template<typename Ty>
 	inline component_reference<Ty> entity_view<T, Rest...>::get() const noexcept {
-		if constexpr (std::is_same<T, Ty>()) {
-		    return *m_ptr;
-		} else{
-            return m_rest.template get<Ty>();
+		if constexpr(std::is_same<T, Ty>()) {
+			return *m_ptr;
+		} else {
+			return m_rest.template get<Ty>();
 		}
 	}
 
@@ -207,16 +207,11 @@ namespace ecs {
 	}
 
 	template<typename... T>
-	view_iterator<T...>::view_iterator(archetype* begin, archetype* end) noexcept : m_archetype(begin), m_archetype_end(end) {
-		// todo: avoid duplicate code
-		// todo: make an ecs::view pre-calculate the begin and end archetype
-		while(!m_archetype->contains<std::remove_const_t<T>...>()) {
-			if(++m_archetype == m_archetype_end) {
-				m_entity.m_ptr = nullptr;
-				return;
-			}
-		}
-		m_entity = entity_view<T...>(m_archetype->data<std::remove_const_t<T>>()...);
+	view_iterator<T...>::view_iterator(archetype* const* begin, archetype* const* end) noexcept : 
+		m_archetype(begin),
+		m_end(end)
+	{
+		if(m_archetype != m_end) m_entity = entity_view<T...>((*begin)->data<std::remove_const_t<T>>()...);
 	}
 
 	template<typename... T>
@@ -231,15 +226,10 @@ namespace ecs {
 
 	template<typename... T>
 	view_iterator<T...>& view_iterator<T...>::operator++() {
-		if(++m_row >= m_archetype->size) {
+		if(++m_row >= (*m_archetype)->size) {
 			m_row = 0;
-			do {
-				if(++m_archetype == m_archetype_end) {
-					m_entity.m_ptr = nullptr;
-					return *this;
-				}
-			} while(!m_archetype->contains<std::remove_const_t<T>...>());
-			m_entity = entity_view<T...>(m_archetype->data<T>()...);
+			if(++m_archetype == m_end)
+				m_entity.m_ptr = nullptr;
 		} else {
 			++m_entity;
 		}
@@ -255,20 +245,24 @@ namespace ecs {
 
 	template<typename... T>
 	bool view_iterator<T...>::operator==(const view_iterator<T...>& other) const noexcept {
-		return m_entity == other.m_entity; // Only comparing the address of the first component, which should be enough.
+		return m_entity == other.m_entity;
 	}
 
 	template<typename... T>
 	bool view_iterator<T...>::operator!=(const view_iterator<T...>& other) const noexcept {
-		return m_entity != other.m_entity; // Only comparing the address of the first component, which should be enough.
+		return m_entity != other.m_entity;
 	}
 
 	template<typename... T>
-	view<T...>::view(archetype* begin, archetype* end) noexcept : m_begin(begin), m_end(end) {}
+	view<T...>::view(archetype* begin, archetype* end) noexcept {
+		for(archetype* it = begin; it != end; ++it)
+			if(it->contains<std::remove_const_t<T>...>())
+				m_archetypes.push_back(it);
+	}
 
 	template<typename... T>
 	view<T...>::iterator view<T...>::begin() const noexcept {
-		return iterator(m_begin, m_end);
+		return iterator(m_archetypes.begin(), m_archetypes.end());
 	}
 
 	template<typename... T>
