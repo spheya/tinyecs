@@ -43,7 +43,7 @@ namespace ecs {
 		);
 
 	public:
-		using value_type = entity_view<T...>;
+		using value_type = std::tuple<component_reference<T>...>;
 		using iterator_category = std::forward_iterator_tag;
 
 	public:
@@ -105,12 +105,12 @@ namespace ecs {
 
 	template<typename... T>
 	inline view_iterator<T...>::value_type view_iterator<T...>::operator*() const noexcept {
-		return entity_view<T...>((std::get<T*>(m_archetype->second) + m_row)...);
+		return value_type(*(std::get<T*>(m_archetype->second) + m_row)...);
 	}
 
 	template<typename... T>
 	view_iterator<T...>& view_iterator<T...>::operator++() {
-		if(++m_row >= m_archetype->first->size) {
+		if(++m_row >= m_archetype->first->size) [[unlikely]] {
 			m_row = 0;
 			++m_archetype;
 		}
