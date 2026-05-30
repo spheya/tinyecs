@@ -228,8 +228,11 @@ namespace ecs {
 	view_iterator<T...>& view_iterator<T...>::operator++() {
 		if(++m_row >= (*m_archetype)->size) {
 			m_row = 0;
-			if(++m_archetype == m_end)
+			if(++m_archetype == m_end) {
 				m_entity.m_ptr = nullptr;
+			} else {
+				m_entity = entity_view<T...>((*m_archetype)->data<std::remove_const_t<T>>()...);
+			}
 		} else {
 			++m_entity;
 		}
