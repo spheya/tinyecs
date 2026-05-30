@@ -21,9 +21,6 @@ namespace ecs {
 
 		template<typename T, size_t S>
 		void init();
-
-		[[nodiscard]] bool is_trivially_copyable_data() const noexcept;
-		[[nodiscard]] bool is_trivially_destructable_data() const noexcept;
 	};
 
 	class archetype {

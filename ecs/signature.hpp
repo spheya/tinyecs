@@ -4,14 +4,14 @@
 #include <cassert>
 #include <functional>
 #include <type_traits>
-#include <vector>
 
 #include "meta.hpp"
+#include "small_vector.hpp"
 
 namespace ecs {
 
 	struct signature {
-		std::vector<component_id> components;
+		ecs::small_vector<component_id, 4> components;
 
 		template<typename... T>
 		[[nodiscard]] bool contains() const noexcept;
@@ -53,7 +53,7 @@ namespace ecs {
 	}
 
 	inline size_t signature::index_of(component_id component) const noexcept {
-		auto it = std::ranges::find(components.begin(), components.end(), component);
+		const component_id* it = std::ranges::find(components.begin(), components.end(), component);
 		assert(it != components.end());
 		return size_t(it - components.begin()); // todo: binary search or sth, make use of the fact this list is sorted
 	}
@@ -63,7 +63,8 @@ namespace ecs {
 	}
 
 	inline bool operator==(const signature& lhs, const signature& rhs) {
-		return lhs.components == rhs.components;
+		if(lhs.components.size() != rhs.components.size()) return false;
+		return memcmp(lhs.components.data(), rhs.components.data(), lhs.components.size() * sizeof(component_id)) == 0;
 	}
 
 } // namespace ecs
