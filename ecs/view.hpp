@@ -25,7 +25,7 @@ namespace ecs {
 
 	public:
 		view_iterator() noexcept = default;
-		view_iterator(const std::pair<archetype*, std::tuple<T*...>>* begin, const std::pair<archetype*, std::tuple<T*...>>* end) noexcept;
+		view_iterator(const std::pair<size_type, std::tuple<T*...>>* begin, const std::pair<size_type, std::tuple<T*...>>* end) noexcept;
 
 		value_type operator*() const noexcept;
 
@@ -37,8 +37,8 @@ namespace ecs {
 
 	private:
 		size_type m_row = 0;
-		const std::pair<archetype*, std::tuple<T*...>>* m_archetype = nullptr;
-		const std::pair<archetype*, std::tuple<T*...>>* m_end = nullptr;
+		const std::pair<size_type, std::tuple<T*...>>* m_archetype = nullptr;
+		const std::pair<size_type, std::tuple<T*...>>* m_end = nullptr;
 	};
 
 	template<typename... T>
@@ -58,11 +58,11 @@ namespace ecs {
 		iterator end() const noexcept;
 
 	private:
-		small_vector<std::pair<archetype*, std::tuple<T*...>>, 8> m_archetypes;
+		small_vector<std::pair<size_type, std::tuple<T*...>>, 8> m_archetypes;
 	};
 
 	template<typename... T>
-	view_iterator<T...>::view_iterator(const std::pair<archetype*, std::tuple<T*...>>* begin, const std::pair<archetype*, std::tuple<T*...>>* end) noexcept :
+	view_iterator<T...>::view_iterator(const std::pair<size_type, std::tuple<T*...>>* begin, const std::pair<size_type, std::tuple<T*...>>* end) noexcept :
 	    m_archetype(begin), m_end(end) {}
 
 	template<typename... T>
@@ -72,7 +72,7 @@ namespace ecs {
 
 	template<typename... T>
 	view_iterator<T...>& view_iterator<T...>::operator++() {
-		if(++m_row >= m_archetype->first->size) [[unlikely]] {
+		if(++m_row >= m_archetype->first) [[unlikely]] {
 			m_row = 0;
 			++m_archetype;
 		}
@@ -99,7 +99,7 @@ namespace ecs {
 	template<typename... T>
 	view<T...>::view(archetype* begin, archetype* end) noexcept {
 		for(archetype* it = begin; it != end; ++it)
-			if(it->size != 0 && it->contains<std::remove_const_t<T>...>()) m_archetypes.emplace_back(it, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
+			if(it->size != 0 && it->contains<std::remove_const_t<T>...>()) m_archetypes.emplace_back(it->size, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
 	}
 
 	template<typename... T>
