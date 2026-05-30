@@ -118,7 +118,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains<T...>());
-		return entity_view<T...>(archetype.data<std::remove_const_t<T>>() + record.row...);
+		return entity_view<T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
 	}
 
 	template<typename... T>
@@ -126,7 +126,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		assert(archetype.signature.contains<std::remove_const_t<T>...>());
-		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>() + record.row...);
+		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
 	}
 
 	template<typename... T>

@@ -10,30 +10,7 @@
 namespace ecs {
 
 	template<typename... T>
-	class entity_view {
-		template<typename... Ty>
-		friend class view_iterator;
-
-		static_assert(is_unique_v<std::remove_const_t<T>...>, "View must only contain unique types");
-		static_assert(
-		    (std::is_same_v<std::remove_const_t<T>, std::remove_cvref_t<T>> && ...), "View must only contain non-reference and non-volatile types"
-		);
-
-	public:
-		entity_view() noexcept = default;
-		entity_view(T*... ptrs) noexcept;
-
-		template<size_t I>
-		component_reference<std::tuple_element_t<I, entity_view<T...>>> get() const noexcept;
-
-		template<typename Ty>
-		component_reference<Ty> get() const noexcept;
-
-		auto operator<=>(const entity_view<T...>&) const = default;
-
-	private:
-		std::tuple<T*...> m_ptrs;
-	};
+	using entity_view = std::tuple<component_reference<T>...>;
 
 	template<typename... T>
 	class view_iterator {
@@ -59,7 +36,7 @@ namespace ecs {
 		bool operator!=(const view_iterator<T...>& other) const noexcept;
 
 	private:
-		size_t m_row = 0;
+		size_type m_row = 0;
 		const std::pair<archetype*, std::tuple<T*...>>* m_archetype = nullptr;
 		const std::pair<archetype*, std::tuple<T*...>>* m_end = nullptr;
 	};
@@ -83,21 +60,6 @@ namespace ecs {
 	private:
 		small_vector<std::pair<archetype*, std::tuple<T*...>>, 8> m_archetypes;
 	};
-
-	template<typename... T>
-	inline entity_view<T...>::entity_view(T*... ptrs) noexcept : m_ptrs(ptrs...) {}
-
-	template<typename... T>
-	template<size_t I>
-	inline component_reference<std::tuple_element_t<I, entity_view<T...>>> entity_view<T...>::get() const noexcept {
-		return *std::get<I>(m_ptrs);
-	}
-
-	template<typename... T>
-	template<typename Ty>
-	inline component_reference<Ty> entity_view<T...>::get() const noexcept {
-		return *std::get<Ty*>(m_ptrs);
-	}
 
 	template<typename... T>
 	view_iterator<T...>::view_iterator(const std::pair<archetype*, std::tuple<T*...>>* begin, const std::pair<archetype*, std::tuple<T*...>>* end) noexcept :
@@ -137,7 +99,7 @@ namespace ecs {
 	template<typename... T>
 	view<T...>::view(archetype* begin, archetype* end) noexcept {
 		for(archetype* it = begin; it != end; ++it)
-			if(it->contains<std::remove_const_t<T>...>()) m_archetypes.emplace_back(it, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
+			if(it->size != 0 && it->contains<std::remove_const_t<T>...>()) m_archetypes.emplace_back(it, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
 	}
 
 	template<typename... T>
@@ -151,21 +113,3 @@ namespace ecs {
 	}
 
 } // namespace ecs
-
-namespace std {
-
-	template<typename... T>
-	struct tuple_size<ecs::entity_view<T...>> : std::integral_constant<std::size_t, sizeof...(T)> {};
-
-	template<typename... T, size_t I>
-	struct tuple_element<I, ecs::entity_view<T...>> {
-		using type = std::tuple_element_t<I, std::tuple<T...>>;
-	};
-
-	// entity_views are views, so even if the view is const, the thing its pointing at could still be mutable
-	template<typename... T, size_t I>
-	struct tuple_element<I, const ecs::entity_view<T...>> {
-		using type = std::tuple_element_t<I, std::tuple<T...>>;
-	};
-
-} // namespace std
