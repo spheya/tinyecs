@@ -1,13 +1,16 @@
 #pragma once
 
 #include <cassert>
+#include <span>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
 
 #include "archetype.hpp"
-#include "signature.hpp"
 #include "meta.hpp"
+#include "signature.hpp"
 #include "view.hpp"
+
 
 namespace ecs {
 
@@ -41,12 +44,14 @@ namespace ecs {
 		template<typename... T>
 		[[nodiscard]] entity_view<const T...> get_components(entity e) const;
 
-		template<typename... T>
-		[[nodiscard]] ecs::view<T...> view();
+		template<typename Func>
+		void each(Func&& func);
 
-		template<typename... T>
-		[[nodiscard]] ecs::view<const T...> view() const;
+	private:
+		template<typename Func, typename... Args>
+		void each_impl(Func&& func, function_args<Args...> /* args */);
 
+	public:
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
 		std::unordered_map<signature, size_t> archetype_lut;
@@ -129,14 +134,21 @@ namespace ecs {
 		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
 	}
 
-	template<typename... T>
-	inline view<T...> world::view() {
-		return ecs::view<T...>(archetypes.data(), archetypes.data() + archetypes.size());
+
+	template<typename Func>
+	void world::each(Func&& func) {
+		each_impl(std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
-	template<typename... T>
-	inline view<const T...> world::view() const {
-		return ecs::view<const T...>(archetypes.data(), archetypes.data() + archetypes.size());
+	template<typename Func, typename... Args>
+	void world::each_impl(Func&& func, function_args<Args...> /* args */) {
+		for(archetype& archetype : archetypes) {
+			if(!archetype.contains<std::remove_cvref_t<Args>...>()) continue;
+			std::tuple<std::remove_cvref_t<Args>*...> base(archetype.data<std::remove_cvref_t<Args>>()...);
+
+			for(size_type i = 0; i < archetype.size; ++i)
+				std::forward<Func>(func)(*(std::get<std::remove_cvref_t<Args>*>(base) + i)...);
+		}
 	}
 
 } // namespace ecs

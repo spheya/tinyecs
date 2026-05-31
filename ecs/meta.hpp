@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
+
 #if defined(__clang__)
 	#define RESTRICT __restrict__
 #elif defined(__GNUC__) || defined(__GNUG__)
@@ -22,6 +23,36 @@ namespace ecs {
 	using component_id = type_index;
 
 	constexpr entity null_entity = entity(0);
+
+	template<typename... T>
+	struct function_args {};
+
+	template<typename T>
+	struct function_traits;
+
+	template<typename Ret, typename Obj, typename... Args>
+	struct function_traits<Ret (Obj::*)(Args...)> {
+		using return_type = Ret;
+		using object_type = Obj;
+		using arguments = function_args<Args...>;
+	};
+
+	template<typename Ret, typename Obj, typename... Args>
+	struct function_traits<Ret (Obj::*)(Args...) const> {
+		using return_type = Ret;
+		using object_type = Obj;
+		using arguments = function_args<Args...>;
+	};
+	
+	template<typename Ret, typename... Args>
+	struct function_traits<Ret (*)(Args...)> {
+		using return_type = Ret;
+		using object_type = void;
+		using arguments = function_args<Args...>;
+	};
+
+	template<typename T>
+	struct function_traits : function_traits<decltype(&std::remove_cvref_t<T>::operator())> {};
 
 	template<typename... T>
 	struct is_unique;

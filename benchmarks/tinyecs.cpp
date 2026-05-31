@@ -48,7 +48,7 @@ static void entity_iteration(benchmark::State& state) {
 
 	for(auto _ : state) {
 		float sum = 0.0f;
-		for(auto&& [pos, vel] : world.view<Position, Velocity>()) sum += pos.x + pos.y + vel.x + vel.y;
+		world.each([&](Position pos, Velocity vel){ sum += pos.x + pos.y + vel.x + vel.y; });
 		benchmark::DoNotOptimize(sum);
 		benchmark::ClobberMemory();
 	}
@@ -62,7 +62,7 @@ static void entity_iteration_partial(benchmark::State& state) {
 
 	for(auto _ : state) {
 		float sum = 0.0f;
-		for(auto&& [pos, vel] : world.view<Position, Velocity>()) sum += pos.x + pos.y + vel.x + vel.y;
+		world.each([&](Position pos, Velocity vel){ sum += pos.x + pos.y + vel.x + vel.y; });
 		benchmark::DoNotOptimize(sum);
 		benchmark::ClobberMemory();
 	}
@@ -76,7 +76,7 @@ static void entity_iteration_const(benchmark::State& state) {
 
 	for(auto _ : state) {
 		float sum = 0.0f;
-		for(auto&& [pos, vel] : world.view<const Position, const Velocity>()) sum += pos.x + pos.y + vel.x + vel.y;
+		world.each([&](Position pos, Velocity vel){ sum += pos.x + pos.y + vel.x + vel.y; });
 		benchmark::DoNotOptimize(sum);
 		benchmark::ClobberMemory();
 	}
@@ -97,7 +97,7 @@ static void entity_iteration_full_scene(benchmark::State& state) {
 
 	for(auto _ : state) {
 		float sum = 0.0f;
-		for(auto&& [pos, vel] : world.view<const Position, const Velocity>()) sum += pos.x + pos.y + vel.x + vel.y;
+		world.each([&](Position pos, Velocity vel){ sum += pos.x + pos.y + vel.x + vel.y; });
 		benchmark::DoNotOptimize(sum);
 		benchmark::ClobberMemory();
 	}
@@ -110,10 +110,10 @@ static void entity_iteration_update(benchmark::State& state) {
 	for(int i = 0; i < 1000; ++i) world.add_entity(Position{}, Velocity{ .x = float(i), .y = float(i) });
 
 	for(auto _ : state) {
-		for(auto&& [pos, vel] : world.view<Position, const Velocity>()) {
+		world.each([](Position& pos, Velocity vel){
 			pos.x += vel.x;
 			pos.y += vel.y;
-		}
+		});
 	}
 	benchmark::DoNotOptimize(world);
 	benchmark::ClobberMemory();

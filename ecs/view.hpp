@@ -57,12 +57,17 @@ namespace ecs {
 		iterator begin() const noexcept;
 		iterator end() const noexcept;
 
+		template<typename Func>
+		void each(Func&& func) const noexcept;
+
 	private:
 		small_vector<std::pair<size_type, std::tuple<T*...>>, 8> m_archetypes;
 	};
 
 	template<typename... T>
-	view_iterator<T...>::view_iterator(const std::pair<size_type, std::tuple<T*...>>* begin, const std::pair<size_type, std::tuple<T*...>>* end) noexcept :
+	view_iterator<T...>::view_iterator(
+	    const std::pair<size_type, std::tuple<T*...>>* begin, const std::pair<size_type, std::tuple<T*...>>* end
+	) noexcept :
 	    m_archetype(begin), m_end(end) {}
 
 	template<typename... T>
@@ -99,7 +104,8 @@ namespace ecs {
 	template<typename... T>
 	view<T...>::view(archetype* begin, archetype* end) noexcept {
 		for(archetype* it = begin; it != end; ++it)
-			if(it->size != 0 && it->contains<std::remove_const_t<T>...>()) m_archetypes.emplace_back(it->size, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
+			if(it->size != 0 && it->contains<std::remove_const_t<T>...>())
+				m_archetypes.emplace_back(it->size, std::tuple<T*...>(it->data<std::remove_const_t<T>>()...));
 	}
 
 	template<typename... T>
@@ -110,6 +116,14 @@ namespace ecs {
 	template<typename... T>
 	view<T...>::iterator view<T...>::end() const noexcept {
 		return iterator(m_archetypes.end(), m_archetypes.end());
+	}
+
+	template<typename... T>
+	template<typename Func>
+	void view<T...>::each(Func&& func) const noexcept {
+		for(auto&& [size, data] : m_archetypes)
+			for(size_type i = 0; i < size; ++i)
+				std::forward<Func>(func)(*(std::get<T*>(data) + i)...);
 	}
 
 } // namespace ecs
