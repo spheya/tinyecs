@@ -35,6 +35,7 @@ public:
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		m_window = glfwCreateWindow(1080, 720, name, nullptr, nullptr); // NOLINT (cppcoreguidelines-prefer-member-initializer)
 		glfwMakeContextCurrent(m_window);
+		glfwSwapInterval(1);
 		gladLoadGL(glfwGetProcAddress);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
