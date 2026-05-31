@@ -47,9 +47,8 @@ namespace ecs {
 		template<typename Func>
 		void each(Func&& func);
 
-	private:
-		template<typename Func, typename... Args>
-		void each_impl(Func&& func, function_args<Args...> /* args */);
+		template<typename Func>
+		void each(Func&& func) const;
 
 	public:
 		entity nextEntity = null_entity + 1;
@@ -57,6 +56,25 @@ namespace ecs {
 		std::unordered_map<signature, size_t> archetype_lut;
 		std::vector<archetype> archetypes;
 	};
+
+	namespace internal {
+		template<typename Func, typename... Args>
+		inline void each_invoke(Func&& func, std::tuple<Args...> base, size_type offset) {
+			std::forward<Func>(func)(*(std::get<Args>(base) + offset)...);
+		}
+
+		template<typename Archetypes, typename Func, typename... Args>
+		inline void each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) {
+			static_assert(is_unique_v<std::remove_cvref_t<Args>...>, "Components must be unique");
+			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, ecs::entity&> || ...), "Cannot get a mutable reference to entity");
+
+			for(auto& archetype : archetypes) {
+				if(!archetype.template contains<std::remove_cvref_t<Args>...>()) continue;
+				auto base = std::make_tuple(archetype.template data<std::remove_cvref_t<Args>>()...);
+				for(size_type i = 0; i < archetype.size; ++i) each_invoke(std::forward<Func>(func), base, i);
+			}
+		}
+	} // namespace internal
 
 	template<typename... T>
 	inline entity world::add_entity(T&&... components) {
@@ -134,21 +152,14 @@ namespace ecs {
 		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
 	}
 
-
 	template<typename Func>
-	void world::each(Func&& func) {
-		each_impl(std::forward<Func>(func), typename function_traits<Func>::arguments());
+	inline void world::each(Func&& func) {
+		internal::each_impl(archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
-	template<typename Func, typename... Args>
-	void world::each_impl(Func&& func, function_args<Args...> /* args */) {
-		for(archetype& archetype : archetypes) {
-			if(!archetype.contains<std::remove_cvref_t<Args>...>()) continue;
-			std::tuple<std::remove_cvref_t<Args>*...> base(archetype.data<std::remove_cvref_t<Args>>()...);
-
-			for(size_type i = 0; i < archetype.size; ++i)
-				std::forward<Func>(func)(*(std::get<std::remove_cvref_t<Args>*>(base) + i)...);
-		}
+	template<typename Func>
+	inline void world::each(Func&& func) const {
+		internal::each_impl(archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
 } // namespace ecs
