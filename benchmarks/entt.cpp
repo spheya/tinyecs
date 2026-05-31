@@ -1,168 +1,125 @@
 #include <benchmark/benchmark.h>
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 
-struct Position {
-	float x, y;
-};
+#include "dummy_components.hpp"
 
-struct Velocity {
-	float x, y;
-};
+#define CREATE_BENCHMARKS(name) \
+	BENCHMARK(name<100>);       \
+	BENCHMARK(name<500>);       \
+	BENCHMARK(name<1000>);      \
+	BENCHMARK(name<10000>);     
+//	BENCHMARK(name<100000>)
 
-struct Renderer {
-	float r, g, b, a;
-	float scale;
-};
+template<size_t N, typename... T>
+struct entity_layout {};
 
-static void entity_creation(benchmark::State& state) {
+template<typename T>
+static entt::entity spawn_entity(entt::registry& world) {
+	entt::entity e = world.create();
+	world.emplace<T>(e, init_component<T>()());
+	return e;
+}
+
+template<typename T, typename S, typename... Rest>
+static entt::entity spawn_entity(entt::registry& world) {
+	entt::entity e = spawn_entity<S, Rest...>(world);
+	world.emplace<T>(e, init_component<T>()());
+	return e;
+}
+
+template<size_t N, typename... T>
+static void spawn_entities(entt::registry& world, entity_layout<N, T...> /* layout */) {
+	for(size_t i = 0; i < N; ++i) spawn_entity<T...>(world);
+}
+
+template<typename... T>
+static entt::registry create_world() {
+	entt::registry world;
+	(spawn_entities(world, T{}), ...);
+	return world;
+}
+
+template<size_t Size>
+static void simple_scene(benchmark::State& state) {
+	entt::registry world = create_world<entity_layout<Size, small_component<0>, small_component<1>>>();
+
 	for(auto _ : state) {
-		entt::registry world;
-		for(int i = 0; i < 1000; ++i) {
-			entt::entity entity = world.create();
-			world.emplace<Position>(entity, Position{});
-			world.emplace<Velocity>(entity, Velocity{});
-			world.emplace<Renderer>(entity, Renderer{});
-		}
+		for(auto&& [entity, a, b] : world.view<small_component<0>, const small_component<1>>().each()) a = a + b;
 		benchmark::DoNotOptimize(world);
-		benchmark::ClobberMemory();
 	}
-	state.SetItemsProcessed(state.iterations() * 1000);
+
+	state.SetItemsProcessed(int64_t(Size) * state.iterations());
 }
-BENCHMARK(entity_creation);
 
-static void entity_destruction(benchmark::State& state) {
+template<size_t Size>
+static void complex_scene(benchmark::State& state) {
+	entt::registry world = create_world<
+	    entity_layout<Size / 4, small_component<0>, small_component<1>>,
+	    entity_layout<Size, big_component<0>, big_component<1>>,
+	    entity_layout<Size, small_component<0>, big_component<1>>,
+	    entity_layout<Size, small_component<1>, big_component<1>>,
+	    entity_layout<Size, small_component<1>, big_component<2>>,
+	    entity_layout<Size, small_component<1>, big_component<3>>,
+	    entity_layout<Size, small_component<1>, big_component<4>>,
+	    entity_layout<Size, big_component<0>, medium_component<1>, small_component<1>>,
+	    entity_layout<Size / 4, medium_component<0>, small_component<0>, small_component<1>>,
+	    entity_layout<Size / 4, big_component<0>, big_component<1>, big_component<2>, small_component<0>, medium_component<0>, small_component<1>>,
+	    entity_layout<Size, small_component<0>, small_component<2>>,
+	    entity_layout<Size, small_component<1>, small_component<2>>,
+	    entity_layout<Size, small_component<3>, small_component<2>>,
+	    entity_layout<Size, small_component<4>, small_component<2>>,
+	    entity_layout<Size / 4, small_component<0>, small_component<1>, medium_component<0>, medium_component<1>, medium_component<2>>,
+	    entity_layout<Size, small_component<5>, small_component<2>>>();
+
 	for(auto _ : state) {
-		state.PauseTiming();
-		entt::registry world;
-		std::vector<entt::entity> entities;
-		entities.reserve(1000);
-		for(int i = 0; i < 1000; ++i) {
-			entities.push_back(world.create());
-			world.emplace<Position>(entities.back(), Position{});
-			world.emplace<Velocity>(entities.back(), Velocity{});
-			world.emplace<Renderer>(entities.back(), Renderer{});
-		}
-		state.ResumeTiming();
-
-		for(auto e : entities) world.destroy(e);
+		for(auto&& [entity, a, b] : world.view<small_component<0>, const small_component<1>>().each()) a = a + b;
 		benchmark::DoNotOptimize(world);
-		benchmark::ClobberMemory();
 	}
-	state.SetItemsProcessed(state.iterations() * 1000);
-}
-BENCHMARK(entity_destruction);
 
-static void entity_iteration(benchmark::State& state) {
-	entt::registry world;
-	for(int i = 0; i < 1000; ++i) {
-		entt::entity entity = world.create();
-		world.emplace<Position>(entity, Position{});
-		world.emplace<Velocity>(entity, float(i), float(i));
-		world.emplace<Renderer>(entity, Renderer{});
-	}
+	state.SetItemsProcessed(int64_t(Size) * state.iterations());
+}
+
+template<size_t Size>
+static void archetype_explosion(benchmark::State& state) {
+	entt::registry world = create_world<
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<0>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<1>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<2>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<3>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<4>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<5>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<6>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<7>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<8>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<9>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<10>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<11>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<12>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<13>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<14>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<15>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<16>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<17>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<18>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<19>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<20>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<21>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<22>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<23>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<24>>,
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<25>>>();
 
 	for(auto _ : state) {
-		float sum = 0.0f;
-		for(auto&& [entity, pos, vel] : world.view<Position, Velocity>().each()) sum += pos.x + pos.y + vel.x + vel.y;
-		benchmark::DoNotOptimize(sum);
-		benchmark::ClobberMemory();
-	}
-	state.SetItemsProcessed(state.iterations() * 1000);
-}
-BENCHMARK(entity_iteration);
-
-static void entity_iteration_partial(benchmark::State& state) {
-	entt::registry world;
-	for(int i = 0; i < 1000; ++i) {
-		entt::entity entity = world.create();
-		world.emplace<Position>(entity, Position{});
-		world.emplace<Velocity>(entity, float(i), float(i));
-	}
-
-	for(auto _ : state) {
-		float sum = 0.0f;
-		for(auto&& [entity, pos, vel] : world.view<Position, Velocity>().each()) sum += pos.x + pos.y + vel.x + vel.y;
-		benchmark::DoNotOptimize(sum);
-		benchmark::ClobberMemory();
-	}
-	state.SetItemsProcessed(state.iterations() * 1000);
-}
-BENCHMARK(entity_iteration_partial);
-
-static void entity_iteration_const(benchmark::State& state) {
-	entt::registry world;
-	for(int i = 0; i < 1000; ++i) {
-		entt::entity entity = world.create();
-		world.emplace<Position>(entity, Position{});
-		world.emplace<Velocity>(entity, float(i), float(i));
-	}
-
-	for(auto _ : state) {
-		float sum = 0.0f;
-		for(auto&& [entity, pos, vel] : world.view<const Position, const Velocity>().each()) sum += pos.x + pos.y + vel.x + vel.y;
-		benchmark::DoNotOptimize(sum);
-		benchmark::ClobberMemory();
-	}
-	state.SetItemsProcessed(state.iterations() * 1000);
-}
-BENCHMARK(entity_iteration_const);
-
-static void entity_iteration_full_scene(benchmark::State& state) {
-	entt::registry world;
-
-	for(int i = 0; i < 500; ++i) {
-		entt::entity a = world.create();
-		world.emplace<Position>(a, Position{});
-		world.emplace<Velocity>(a, float(i), float(i));
-
-		entt::entity b = world.create();
-		world.emplace<Position>(b, Position{});
-		world.emplace<Velocity>(b, float(i), float(i));
-		world.emplace<Renderer>(b, Renderer{});
-
-		entt::entity c = world.create();
-		world.emplace<Position>(c, Position{});
-
-		entt::entity d = world.create();
-		world.emplace<Position>(d, Position{});
-		world.emplace<Renderer>(d, Renderer{});
-
-		entt::entity e = world.create();
-		world.emplace<Velocity>(e, Velocity{});
-		world.emplace<Renderer>(e, Renderer{});
-
-		entt::entity f = world.create();
-		world.emplace<Velocity>(f, Velocity{});
-	}
-
-	for(auto _ : state) {
-		float sum = 0.0f;
-		for(auto&& [entity, pos, vel] : world.view<const Position, const Velocity>().each()) sum += pos.x + pos.y + vel.x + vel.y;
-		benchmark::DoNotOptimize(sum);
-		benchmark::ClobberMemory();
-	}
-	state.SetItemsProcessed(state.iterations() * 1000);
-}
-BENCHMARK(entity_iteration_full_scene);
-
-static void entity_iteration_update(benchmark::State& state) {
-	entt::registry world;
-	for(int i = 0; i < 1000; ++i) {
-		entt::entity entity = world.create();
-		world.emplace<Position>(entity, Position{});
-		world.emplace<Velocity>(entity, float(i), float(i));
-	}
-	for(auto _ : state) {
-		for(auto&& [entity, pos, vel] : world.view<Position, const Velocity>().each()) {
-			pos.x += vel.x;
-			pos.y += vel.y;
-		}
+		for(auto&& [entity, a, b] : world.view<small_component<0>, const small_component<1>>().each()) a = a + b;
 		benchmark::DoNotOptimize(world);
-		benchmark::ClobberMemory();
 	}
 
-	state.SetItemsProcessed(state.iterations() * 1000);
+	state.SetItemsProcessed(int64_t(Size) * state.iterations());
 }
-BENCHMARK(entity_iteration_update);
+
+CREATE_BENCHMARKS(simple_scene);
+CREATE_BENCHMARKS(complex_scene);
+CREATE_BENCHMARKS(archetype_explosion);
 
 BENCHMARK_MAIN();
