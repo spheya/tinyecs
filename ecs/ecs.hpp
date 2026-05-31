@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cassert>
-#include <span>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -9,10 +8,11 @@
 #include "archetype.hpp"
 #include "meta.hpp"
 #include "signature.hpp"
-#include "view.hpp"
-
 
 namespace ecs {
+
+	template<typename... T>
+	using entity_view = std::tuple<component_reference<T>...>;
 
 	struct entity_record {
 		size_t archetype;
