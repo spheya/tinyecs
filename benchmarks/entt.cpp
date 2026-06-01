@@ -8,7 +8,7 @@
 	BENCHMARK(name<100>);       \
 	BENCHMARK(name<500>);       \
 	BENCHMARK(name<1000>);      \
-	BENCHMARK(name<10000>);     
+	BENCHMARK(name<10000>);
 //	BENCHMARK(name<100000>)
 
 template<size_t N, typename... T>
