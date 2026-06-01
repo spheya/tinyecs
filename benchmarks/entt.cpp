@@ -1,3 +1,6 @@
+#include <cstddef>
+#include <cstdint>
+
 #include <benchmark/benchmark.h>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>

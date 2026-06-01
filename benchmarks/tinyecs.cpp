@@ -1,7 +1,11 @@
+#include <cstddef>
+#include <cstdint>
+
 #include <benchmark/benchmark.h>
 #include <ecs/ecs.hpp>
 
 #include "dummy_components.hpp"
+
 
 #define CREATE_BENCHMARKS(name) \
 	BENCHMARK(name<100>);       \

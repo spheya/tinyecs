@@ -1,3 +1,6 @@
+#include <cstddef>
+#include <cstdint>
+
 #include <benchmark/benchmark.h>
 #include <flecs.h>
 #include <flecs/addons/cpp/entity.hpp>
