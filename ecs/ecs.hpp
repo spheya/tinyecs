@@ -132,7 +132,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
 		std::tuple<T*...> columns(archetype.column<T>()...);
-		assert(std::get<T*>(columns) && ...); // entity doesnt contain all components
+		TINYECS_ASSUME(std::get<T*>(columns) && ...); // entity doesnt contain all components
 		return entity_view<T...>(std::get<T*>(columns)[record.row]...);
 	}
 
@@ -141,7 +141,7 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		std::tuple<const T*...> columns(archetype.column<const T>()...);
-		assert(std::get<T*>(columns) && ...); // entity doesnt contain all components
+		TINYECS_ASSUME(std::get<T*>(columns) && ...); // entity doesnt contain all components
 		return entity_view<T...>(std::get<const T*>(columns)[record.row]...);
 	}
 

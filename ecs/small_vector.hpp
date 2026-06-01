@@ -250,21 +250,25 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	T& small_vector<T, N>::front() noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return *m_data;
 	}
 
 	template<typename T, size_type N>
 	const T& small_vector<T, N>::front() const noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return *m_data;
 	}
 
 	template<typename T, size_type N>
 	T& small_vector<T, N>::back() noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return *(m_data + m_size - 1);
 	}
 
 	template<typename T, size_type N>
 	const T& small_vector<T, N>::back() const noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return *(m_data + m_size - 1);
 	}
 
@@ -285,6 +289,7 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::pop_back() {
+		TINYECS_ASSUME(m_size != 0);
 		std::destroy_at(m_data + m_size - 1);
 		--m_size;
 	}
@@ -338,11 +343,13 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	T& small_vector<T, N>::operator[](size_type idx) noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return m_data[idx];
 	}
 
 	template<typename T, size_type N>
 	const T& small_vector<T, N>::operator[](size_type idx) const noexcept {
+		TINYECS_ASSUME(m_size != 0);
 		return m_data[idx];
 	}
 

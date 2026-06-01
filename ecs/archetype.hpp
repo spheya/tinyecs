@@ -160,7 +160,7 @@ namespace ecs {
 		    [&]() {
 			    const component_id* it =
 			        std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_cvref_t<T>>());
-			    assert(it != m_signature.components.end());
+			    TINYECS_ASSUME(it != m_signature.components.end());
 			    auto index = size_type(it - m_signature.components.begin());
 			    m_columns[index] = malloc(initial_capacity * sizeof(T));
 			    m_component_ops[index] = create_component_operations<T>();
@@ -173,14 +173,14 @@ namespace ecs {
 	template<typename... T>
 	inline size_type archetype::add_entity(entity entity, T&&... components) {
 		if(m_size == m_capacity) reserve(m_capacity * 2);
-		assert(column<std::remove_cvref_t<T>>() && ...); // archetype does not contain these components
+		TINYECS_ASSUME(column<std::remove_cvref_t<T>>() && ...); // archetype does not contain these components
 		m_entities[m_size] = entity;
 		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
 		return m_size++;
 	}
 
 	inline entity archetype::remove_entity(size_type row) {
-		assert(row < m_size);
+		TINYECS_ASSUME(row < m_size);
 		--m_size;
 
 		for(size_type i = 0; i < m_columns.size(); ++i) {
@@ -229,7 +229,7 @@ namespace ecs {
 	}
 
 	inline void archetype::reserve(size_type capacity) {
-		assert(capacity > m_size);
+		TINYECS_ASSUME(capacity > m_size);
 
 		auto* new_entities = static_cast<entity*>(realloc(m_entities, capacity * sizeof(entity)));
 		if(!new_entities) throw std::bad_alloc();

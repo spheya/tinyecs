@@ -1,8 +1,16 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
+
+#if defined(NDEBUG) && (defined(__clang__) || defined(__GNUC__))
+	#define TINYECS_ASSUME(x) \
+		if(!(x)) __builtin_unreachable()
+#else
+	#define TINYECS_ASSUME(x) assert(x)
+#endif
 
 namespace ecs {
 
@@ -10,7 +18,7 @@ namespace ecs {
 	using type_index = uint32_t;
 	using entity = uint32_t;
 	using component_id = type_index;
-	
+
 	constexpr entity null_entity = entity(0);
 
 	static_assert(std::is_trivially_copyable<entity>(), "Entity type must be trivially copyable");
