@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.compiler == 'MSVC' && 'windows-latest' || 'ubuntu-latest' }}
+
+    strategy:
+      matrix:
+        config: [Release, Debug]
+        compiler: [MSVC, GCC, Clang]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: turtlesec-no/get-ninja@main
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Build
+        shell: bash
+        run: |
+          if [[ "${{ matrix.compiler }}" == "Clang" ]] ; then
+            export CC=clang
+            export CXX=clang++
+          fi
+          cmake -B build -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          cmake --build build --parallel $(nproc)
