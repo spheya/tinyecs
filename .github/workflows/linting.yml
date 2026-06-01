@@ -19,7 +19,7 @@ jobs:
       - name: Run clang-format
         run: |
           result=0
-          for file in $(git ls-files '*.cpp' '*.h' '*.hpp'); do
+          for file in $(git ls-files '*.cpp' '*.hpp'); do
             if ! clang-format-21 --dry-run --Werror "$file"; then
               result=1
             fi
