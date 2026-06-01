@@ -229,22 +229,22 @@ namespace ecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::iterator small_vector<T, N>::begin() noexcept {
+	typename small_vector<T, N>::iterator small_vector<T, N>::begin() noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::const_iterator small_vector<T, N>::begin() const noexcept {
+	typename small_vector<T, N>::const_iterator small_vector<T, N>::begin() const noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::iterator small_vector<T, N>::end() noexcept {
+	typename small_vector<T, N>::iterator small_vector<T, N>::end() noexcept {
 		return m_data + m_size;
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::const_iterator small_vector<T, N>::end() const noexcept {
+	typename small_vector<T, N>::const_iterator small_vector<T, N>::end() const noexcept {
 		return m_data + m_size;
 	}
 
