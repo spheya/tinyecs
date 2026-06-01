@@ -71,7 +71,8 @@ namespace ecs {
 			for(auto& archetype : archetypes) {
 				if(!archetype.template contains<std::remove_cvref_t<Args>...>()) continue;
 				auto base = std::make_tuple(archetype.template data<std::remove_cvref_t<Args>>()...);
-				for(size_type i = 0; i < archetype.size; ++i) each_invoke(std::forward<Func>(func), base, i);
+				size_type size = archetype.size;
+				for(size_type i = 0; i < size; ++i) each_invoke(std::forward<Func>(func), base, i);
 			}
 		}
 	} // namespace internal
