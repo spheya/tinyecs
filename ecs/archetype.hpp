@@ -165,7 +165,9 @@ namespace ecs {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
 			return entities;
 		} else {
-			return reinterpret_cast<T*>(columns[signature.index_of<std::remove_const_t<T>>()].data);
+			const component_id* it = std::ranges::find(signature.components.begin(), signature.components.end(), type_id<std::remove_const_t<T>>());
+			if(it == signature.components.end()) return nullptr;
+			return reinterpret_cast<T*>(columns[it - signature.components.begin()].data);
 		}
 	}
 
@@ -174,7 +176,9 @@ namespace ecs {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
 			return entities;
 		} else {
-			return reinterpret_cast<const T*>(columns[signature.index_of<std::remove_const_t<T>>()].data);
+			const component_id* it = std::ranges::find(signature.components.begin(), signature.components.end(), type_id<std::remove_const_t<T>>());
+			if(it == signature.components.end()) return nullptr;
+			return reinterpret_cast<const T*>(columns[it - signature.components.begin()].data);
 		}
 	}
 

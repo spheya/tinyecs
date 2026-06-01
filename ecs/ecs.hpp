@@ -33,10 +33,10 @@ namespace ecs {
 		[[nodiscard]] bool has_components(entity e) const noexcept;
 
 		template<typename T>
-		[[nodiscard]] reference<T> get_component(entity e);
+		[[nodiscard]] component_reference<T> get_component(entity e);
 
 		template<typename T>
-		[[nodiscard]] reference<const T> get_component(entity e) const;
+		[[nodiscard]] component_reference<const T> get_component(entity e) const;
 
 		template<typename... T>
 		[[nodiscard]] entity_view<T...> get_components(entity e);
@@ -64,8 +64,8 @@ namespace ecs {
 			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, ecs::entity&> || ...), "Cannot get a mutable reference to entity");
 
 			for(auto& archetype : archetypes) {
-				if(!archetype.template contains<std::remove_cvref_t<Args>...>()) continue;
 				auto base = std::make_tuple(archetype.template data<std::remove_cvref_t<Args>>()...);
+				if(((std::get<decltype(archetype.template data<std::remove_cvref_t<Args>>())>(base) == nullptr) || ...)) continue;
 				size_type size = archetype.size;
 				for(size_type i = 0; i < size; ++i) std::forward<Func>(func)(std::get<decltype(archetype.template data<std::remove_cvref_t<Args>>())>(base)[i]...);
 			}
