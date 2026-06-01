@@ -58,7 +58,7 @@ namespace ecs {
 		size_t size = 0;
 		size_t capacity = 0;
 		entity* entities = nullptr;
-		column* columns = nullptr;
+		small_vector<column, 4> columns;
 	};
 
 	template<typename T, size_t S>
@@ -74,42 +74,38 @@ namespace ecs {
 	}
 
 	inline archetype::archetype(archetype&& other) noexcept :
-	    signature(std::move(other.signature)), size(other.size), capacity(other.capacity), entities(other.entities), columns(other.columns) {
+	    signature(std::move(other.signature)), size(other.size), capacity(other.capacity), entities(other.entities), columns(std::move(other.columns)) {
 		other.signature = {};
 		other.entities = nullptr;
-		other.columns = nullptr;
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
 		if(this == &other) return *this;
 
-		for(int i = 0; i < int(signature.size()); ++i) {
+		for(size_type i = 0; i < signature.size(); ++i) {
 			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
 		free(entities);
-		free(columns);
 
 		signature = std::move(other.signature);
 		size = other.size;
 		capacity = other.capacity;
 		entities = other.entities;
-		columns = other.columns;
+		columns = std::move(other.columns);
 
 		other.signature = {};
 		other.entities = nullptr;
-		other.columns = nullptr;
 
 		return *this;
 	}
 
 	inline archetype::~archetype() {
-		for(int i = 0; i < int(signature.size()); ++i) {
+		for(size_type i = 0; i < signature.size(); ++i) {
 			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
 			free(columns[i].data);
 		}
 		free(entities);
-		free(columns);
 	}
 
 	template<typename... T>
@@ -119,7 +115,7 @@ namespace ecs {
 		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
 
 		constexpr size_t initial_capacity = 8;
-		columns = static_cast<column*>(malloc(sizeof...(T) * sizeof(column)));
+		columns.resize(sizeof...(T));
 		(columns[signature.index_of<T>()].template init<T, initial_capacity>(), ...);
 		capacity = initial_capacity;
 		entities = static_cast<entity*>(malloc(capacity * sizeof(entity)));
@@ -135,10 +131,10 @@ namespace ecs {
 		entities[size] = entity;
 		(
 		    [&] {
-			    auto it = std::find_if(columns, columns + signature.size(), [](const column& c) {
+			    auto it = std::find_if(columns.begin(), columns.end(), [](const column& c) {
 				    return c.component_id == type_id<std::remove_cvref_t<T>>(); // todo: compare performance of this vs signature::index_of
 			    });
-			    assert(it != columns + signature.size());
+			    assert(it != columns.end());
 			    std::construct_at(reinterpret_cast<std::remove_cvref_t<T>*>(it->data) + size, std::forward<T>(components));
 		    }(),
 		    ...
@@ -152,7 +148,7 @@ namespace ecs {
 		--size;
 		if(size == 0) return null_entity;
 		entities[row] = entities[size];
-		for(int i = 0; i < int(signature.size()); ++i) {
+		for(size_type i = 0; i < size_type(signature.size()); ++i) {
 			column& column = columns[i];
 			if(column.ops.is_trivially_copyable()) {
 				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
@@ -195,7 +191,7 @@ namespace ecs {
 
 	inline void archetype::reallocate(size_t newCapacity) {
 		entities = static_cast<entity*>(realloc(entities, newCapacity * sizeof(entity)));
-		for(int i = 0; i < int(signature.size()); ++i) {
+		for(size_type i = 0; i < size_type(signature.size()); ++i) {
 			column& column = columns[i];
 			if(column.ops.is_trivially_copyable()) {
 				column.data = static_cast<char*>(realloc(column.data, newCapacity * column.element_size));
