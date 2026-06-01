@@ -260,12 +260,12 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	T& small_vector<T, N>::back() noexcept {
-		return *(m_data + m_size);
+		return *(m_data + m_size - 1);
 	}
 
 	template<typename T, size_type N>
 	const T& small_vector<T, N>::back() const noexcept {
-		return *(m_data + m_size);
+		return *(m_data + m_size - 1);
 	}
 
 	template<typename T, size_type N>
@@ -285,7 +285,7 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::pop_back() {
-		std::destroy_at(m_data + m_size);
+		std::destroy_at(m_data + m_size - 1);
 		--m_size;
 	}
 
@@ -351,6 +351,7 @@ namespace ecs {
 		if(m_size != other.m_size) return false;
 		for(size_type i = 0; i < m_size; ++i)
 			if(m_data[i] != other.m_data[i]) return false;
+		return true;
 	}
 
 	template<typename T, size_type N>

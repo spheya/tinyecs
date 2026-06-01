@@ -6,12 +6,22 @@
 #include <type_traits>
 #include <utility>
 
-#include "component.hpp"
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
 
 namespace ecs {
+
+	struct component_ops {
+		void (*destroy)(void* ptr);
+		void (*mass_destroy)(void* ptr, size_type count);
+		void (*relocate)(void* dst, void* src);
+		void (*mass_relocate)(void* dst, void* src, size_type count);
+		size_t component_size;
+
+		[[nodiscard]] bool is_trivially_copyable() const noexcept;
+		[[nodiscard]] bool is_trivially_destructible() const noexcept;
+	};
 
 	class archetype {
 	public:
@@ -44,13 +54,6 @@ namespace ecs {
 		void reserve(size_type capacity);
 
 	private:
-		template<typename... T, size_type... I>
-		void init_impl(std::integer_sequence<size_type, I...> /* seq */);
-
-		template<typename... T, size_type... I>
-		void add_entity_impl(std::integer_sequence<size_type, I...> /* seq */);
-
-	private:
 		constexpr static size_t initial_capacity = 8;
 
 		signature m_signature;
@@ -60,6 +63,42 @@ namespace ecs {
 		small_vector<void*, 8> m_columns;
 		small_vector<component_ops, 1> m_component_ops;
 	};
+
+	template<typename T>
+	component_ops create_component_operations() {
+		component_ops result{};
+
+		result.component_size = sizeof(T);
+
+		if constexpr(!std::is_trivially_copyable_v<T>) {
+			result.relocate = [](void* dst, void* src) {
+				std::construct_at(static_cast<T*>(dst), std::move(*static_cast<T*>(src)));
+				std::destroy_at(static_cast<T*>(src));
+			};
+			result.mass_relocate = [](void* dst, void* src, size_type count) {
+				for(size_type i = 0; i < count; ++i) {
+					std::construct_at(static_cast<T*>(dst) + i, std::move(static_cast<T*>(src)[i]));
+					std::destroy_at(static_cast<T*>(src) + i);
+				}
+			};
+
+			if constexpr(!std::is_trivially_destructible_v<T>) {
+				result.destroy = [](void* ptr) { std::destroy_at(static_cast<T*>(ptr)); };
+				result.mass_destroy = [](void* ptr, size_type count) {
+					for(size_type i = 0; i < count; ++i) std::destroy_at(static_cast<T*>(ptr) + i);
+				};
+			}
+		}
+		return result;
+	}
+
+	inline bool component_ops::is_trivially_copyable() const noexcept {
+		return relocate == nullptr;
+	}
+
+	inline bool component_ops::is_trivially_destructible() const noexcept {
+		return destroy == nullptr;
+	}
 
 	inline archetype::archetype(signature signature) : m_signature(std::move(signature)) {}
 
@@ -110,19 +149,25 @@ namespace ecs {
 		}
 	}
 
-	template<typename... T, size_type... I>
-	inline void archetype::init_impl(std::integer_sequence<size_type, I...> /* seq */) {
-		((m_columns[I] = malloc(initial_capacity * sizeof(T))), ...);
-		if(!(m_columns[I] && ...)) throw std::bad_alloc();
-	}
-
 	template<typename... T>
 	inline void archetype::init() {
 		m_columns.resize(sizeof...(T));
-		m_component_ops = { create_component_operations<T>()... };
+		m_component_ops.resize(sizeof...(T));
 		m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
 		if(!m_entities) throw std::bad_alloc();
-		init_impl<T...>(std::make_index_sequence<sizeof...(T)>());
+
+		(
+		    [&]() {
+			    const component_id* it =
+			        std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_cvref_t<T>>());
+			    assert(it != m_signature.components.end());
+			    auto index = size_type(it - m_signature.components.begin());
+			    m_columns[index] = malloc(initial_capacity * sizeof(T));
+			    m_component_ops[index] = create_component_operations<T>();
+			    if(!m_columns[index]) throw std::bad_alloc();
+		    }(),
+		    ...
+		);
 	}
 
 	template<typename... T>
@@ -143,7 +188,7 @@ namespace ecs {
 			char* column = static_cast<char*>(m_columns[i]);
 
 			if(ops.is_trivially_copyable()) {
-				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size, ops.component_size);
+				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
 			} else {
 				if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
 				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
@@ -193,18 +238,18 @@ namespace ecs {
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* column = static_cast<char*>(m_columns[i]);
+			void* new_column;
 
 			if(ops.is_trivially_copyable()) {
-				void* new_column = realloc(m_columns[i], capacity * ops.component_size);
-				if(!new_column) throw std::bad_alloc();
-				m_columns[i] = new_column;
+				new_column = realloc(column, capacity * ops.component_size);
 			} else {
-				char* new_column = static_cast<char*>(malloc(capacity * ops.component_size));
-				if(!new_column) throw std::bad_alloc();
+				new_column = malloc(capacity * ops.component_size);
 				ops.mass_relocate(new_column, column, m_size);
 				free(column);
-				m_columns[i] = new_column;
 			}
+
+			if(!new_column) throw std::bad_alloc();
+			m_columns[i] = new_column;
 		}
 
 		m_capacity = capacity;

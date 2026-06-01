@@ -15,8 +15,8 @@ namespace ecs {
 	using entity_view = std::tuple<component_reference<T>...>;
 
 	struct entity_record {
-		size_t archetype;
-		size_t row;
+		size_type archetype;
+		size_type row;
 	};
 
 	class world {
@@ -78,7 +78,7 @@ namespace ecs {
 		signature sig = create_signature<std::remove_cvref_t<T>...>();
 
 		archetype* archetype;
-		size_t archetype_index;
+		size_type archetype_index;
 
 		auto it = archetype_lut.find(sig);
 		if(it == archetype_lut.end()) {
@@ -93,7 +93,7 @@ namespace ecs {
 		}
 
 		entity e = nextEntity++;
-		size_t row = archetype->add_entity<std::remove_cvref_t<T>...>(e, std::forward<T>(components)...);
+		size_type row = archetype->add_entity<std::remove_cvref_t<T>...>(e, std::forward<T>(components)...);
 		entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;
 	}
@@ -114,7 +114,7 @@ namespace ecs {
 	inline bool world::has_components(entity e) const noexcept {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		return !(archetype.column<T>() || ...);
+		return (archetype.column<T>() && ...);
 	}
 
 	template<typename T>
