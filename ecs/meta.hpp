@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <type_traits>
 
-
 #if defined(__clang__)
 	#define RESTRICT __restrict__
 #elif defined(__GNUC__) || defined(__GNUG__)
@@ -30,24 +29,21 @@ namespace ecs {
 	template<typename T>
 	struct function_traits;
 
-	template<typename Ret, typename Obj, typename... Args>
-	struct function_traits<Ret (Obj::*)(Args...)> {
+	template<typename T, typename Ret, typename... Args>
+	struct function_traits<Ret (T::*)(Args...) const> {
 		using return_type = Ret;
-		using object_type = Obj;
 		using arguments = function_args<Args...>;
 	};
 
-	template<typename Ret, typename Obj, typename... Args>
-	struct function_traits<Ret (Obj::*)(Args...) const> {
+	template<typename Ret, typename... Args>
+	struct function_traits<Ret(Args...)> {
 		using return_type = Ret;
-		using object_type = Obj;
 		using arguments = function_args<Args...>;
 	};
-	
+
 	template<typename Ret, typename... Args>
 	struct function_traits<Ret (*)(Args...)> {
 		using return_type = Ret;
-		using object_type = void;
 		using arguments = function_args<Args...>;
 	};
 

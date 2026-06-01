@@ -58,11 +58,6 @@ namespace ecs {
 	};
 
 	namespace internal {
-		template<typename Func, typename... Args>
-		inline void each_invoke(Func&& func, std::tuple<Args...> base, size_type offset) {
-			std::forward<Func>(func)(*(std::get<Args>(base) + offset)...);
-		}
-
 		template<typename Archetypes, typename Func, typename... Args>
 		inline void each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) {
 			static_assert(is_unique_v<std::remove_cvref_t<Args>...>, "Components must be unique");
@@ -72,7 +67,7 @@ namespace ecs {
 				if(!archetype.template contains<std::remove_cvref_t<Args>...>()) continue;
 				auto base = std::make_tuple(archetype.template data<std::remove_cvref_t<Args>>()...);
 				size_type size = archetype.size;
-				for(size_type i = 0; i < size; ++i) each_invoke(std::forward<Func>(func), base, i);
+				for(size_type i = 0; i < size; ++i) std::forward<Func>(func)(std::get<decltype(archetype.template data<std::remove_cvref_t<Args>>())>(base)[i]...);
 			}
 		}
 	} // namespace internal
