@@ -36,7 +36,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install ninja-build clang-tidy
+          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev ninja-build clang-tidy
       - name: CMake Configure
         run: cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTINYECS_THIRD_PARTY_BENCHMARKS=ON
       - name: Run clang-tidy
@@ -51,7 +51,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install ninja-build iwyu
+          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev ninja-build iwyu
       - name: Build
         run: |
           cmake -B build -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DTINYECS_USE_IWYU=On -DTINYECS_THIRD_PARTY_BENCHMARKS=ON

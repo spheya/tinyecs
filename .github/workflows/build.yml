@@ -16,6 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Install Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
       - uses: turtlesec-no/get-ninja@main
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
