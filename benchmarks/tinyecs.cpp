@@ -6,7 +6,6 @@
 
 #include "dummy_components.hpp"
 
-
 #define CREATE_BENCHMARKS(name) \
 	BENCHMARK(name<100>);       \
 	BENCHMARK(name<500>);       \
