@@ -9,7 +9,7 @@
 	#define TINYECS_ASSUME(x) \
 		if(!(x)) __builtin_unreachable()
 #else
-	#define TINYECS_ASSUME(x) assert(x)
+	#define TINYECS_ASSUME(x) assert((x))
 #endif
 
 namespace ecs {
