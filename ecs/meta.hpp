@@ -4,24 +4,16 @@
 #include <cstdint>
 #include <type_traits>
 
-#if defined(__clang__)
-	#define RESTRICT __restrict__
-#elif defined(__GNUC__) || defined(__GNUG__)
-	#define RESTRICT __restrict__
-#elif defined(_MSC_VER)
-	#define RESTRICT __restrict
-#else
-	#define RESTRICT
-#endif
-
 namespace ecs {
 
 	using size_type = size_t;
 	using type_index = uint32_t;
 	using entity = uint32_t;
 	using component_id = type_index;
-
+	
 	constexpr entity null_entity = entity(0);
+
+	static_assert(std::is_trivially_copyable<entity>(), "Entity type must be trivially copyable");
 
 	template<typename... T>
 	struct function_args {};

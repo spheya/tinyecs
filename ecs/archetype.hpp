@@ -1,212 +1,213 @@
 #pragma once
 
-#include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <new>
 #include <type_traits>
 #include <utility>
 
+#include "component.hpp"
 #include "meta.hpp"
 #include "signature.hpp"
-#include "component.hpp"
+#include "small_vector.hpp"
 
 namespace ecs {
 
-	struct column {
-		component_ops ops;
-
-		size_t element_size;
-		component_id component_id;
-		char* data;
-
-		template<typename T, size_t S>
-		void init();
-	};
-
 	class archetype {
 	public:
-		archetype(signature signature) : signature(std::move(signature)) {}
+		archetype(signature signature);
 		archetype(archetype&) = delete;
 		archetype& operator=(archetype&) = delete;
 		archetype(archetype&& other) noexcept;
 		archetype& operator=(archetype&& other) noexcept;
 		~archetype();
 
+	public:
 		template<typename... T>
 		void init();
 
+		// returns the row that the entity lives on
 		template<typename... T>
-		size_t add_entity(entity entity, T&&... components);
+		size_type add_entity(entity entity, T&&... components);
 
-		// returns the entity that took its place or `null_entity` if the archetype is empty
-		entity remove_entity(size_t row);
+		// returns the entity that is now stored on the row, or null_entity if the row is no longer used
+		entity remove_entity(size_type row);
 
 		template<typename T>
-		[[nodiscard]] T* data();
+		[[nodiscard]] T* column() noexcept;
 
 		template<typename T>
-		[[nodiscard]] const T* data() const;
+		[[nodiscard]] const T* column() const noexcept;
 
-		template<typename... T>
-		[[nodiscard]] bool contains() const;
+		[[nodiscard]] size_type size() const noexcept;
+
+		void reserve(size_type capacity);
 
 	private:
-		void reallocate(size_t newCapacity);
+		template<typename... T, size_type... I>
+		void init_impl(std::integer_sequence<size_type, I...> /* seq */);
 
-	public:
-		signature signature;
-		size_t size = 0;
-		size_t capacity = 0;
-		entity* entities = nullptr;
-		small_vector<column, 4> columns;
+		template<typename... T, size_type... I>
+		void add_entity_impl(std::integer_sequence<size_type, I...> /* seq */);
+
+	private:
+		constexpr static size_t initial_capacity = 8;
+
+		signature m_signature;
+		size_type m_size = 0;
+		size_type m_capacity = initial_capacity;
+		entity* m_entities = nullptr;
+		small_vector<void*, 8> m_columns;
+		small_vector<component_ops, 1> m_component_ops;
 	};
 
-	template<typename T, size_t S>
-	inline void column::init() {
-		static_assert(!std::is_reference_v<T>, "Column element type cannot be a reference");
-
-		ops = create_component_operations<T>();
-
-		element_size = sizeof(T);
-		component_id = type_id<T>();
-
-		data = static_cast<char*>(malloc(S * sizeof(T)));
-	}
+	inline archetype::archetype(signature signature) : m_signature(std::move(signature)) {}
 
 	inline archetype::archetype(archetype&& other) noexcept :
-	    signature(std::move(other.signature)), size(other.size), capacity(other.capacity), entities(other.entities), columns(std::move(other.columns)) {
-		other.signature = {};
-		other.entities = nullptr;
+	    m_signature(std::move(other.m_signature)),
+	    m_size(other.m_size),
+	    m_capacity(other.m_capacity),
+	    m_entities(other.m_entities),
+	    m_columns(std::move(other.m_columns)),
+	    m_component_ops(std::move(other.m_component_ops)) {
+		other.m_entities = nullptr;
 	}
 
 	inline archetype& archetype::operator=(archetype&& other) noexcept {
 		if(this == &other) return *this;
 
-		for(size_type i = 0; i < signature.size(); ++i) {
-			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
-			free(columns[i].data);
+		if(m_entities) {
+			for(size_type i = 0; i < m_columns.size(); ++i) {
+				const component_ops& ops = m_component_ops[i];
+				char* column = static_cast<char*>(m_columns[i]);
+				if(!ops.is_trivially_destructible()) ops.mass_destroy(column, m_size);
+				free(column);
+			}
+			free(m_entities);
 		}
-		free(entities);
 
-		signature = std::move(other.signature);
-		size = other.size;
-		capacity = other.capacity;
-		entities = other.entities;
-		columns = std::move(other.columns);
+		m_signature = std::move(other.m_signature);
+		m_size = other.m_size;
+		m_capacity = other.m_capacity;
+		m_entities = other.m_entities;
+		m_columns = std::move(other.m_columns);
+		m_component_ops = std::move(other.m_component_ops);
 
-		other.signature = {};
-		other.entities = nullptr;
+		other.m_entities = nullptr;
 
 		return *this;
 	}
 
 	inline archetype::~archetype() {
-		for(size_type i = 0; i < signature.size(); ++i) {
-			if(!columns[i].ops.is_trivially_destructible()) columns[i].ops.mass_destroy(columns[i].data, size);
-			free(columns[i].data);
+		if(m_entities) {
+			for(size_type i = 0; i < m_columns.size(); ++i) {
+				const component_ops& ops = m_component_ops[i];
+				char* column = static_cast<char*>(m_columns[i]);
+				if(!ops.is_trivially_destructible()) ops.mass_destroy(column, m_size);
+				free(column);
+			}
+			free(m_entities);
 		}
-		free(entities);
+	}
+
+	template<typename... T, size_type... I>
+	inline void archetype::init_impl(std::integer_sequence<size_type, I...> /* seq */) {
+		((m_columns[I] = malloc(initial_capacity * sizeof(T))), ...);
+		if(!(m_columns[I] && ...)) throw std::bad_alloc();
 	}
 
 	template<typename... T>
 	inline void archetype::init() {
-		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
-		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature only allows non-reference, unqualified types");
-		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
-
-		constexpr size_t initial_capacity = 8;
-		columns.resize(sizeof...(T));
-		(columns[signature.index_of<T>()].template init<T, initial_capacity>(), ...);
-		capacity = initial_capacity;
-		entities = static_cast<entity*>(malloc(capacity * sizeof(entity)));
+		m_columns.resize(sizeof...(T));
+		m_component_ops = { create_component_operations<T>()... };
+		m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
+		if(!m_entities) throw std::bad_alloc();
+		init_impl<T...>(std::make_index_sequence<sizeof...(T)>());
 	}
 
 	template<typename... T>
-	inline size_t archetype::add_entity(entity entity, T&&... components) {
-		static_assert(is_unique_v<std::remove_cvref_t<T>...>, "Archetype signature must only contain unique types");
-		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, ecs::entity> || ...), "Archetype signature cannot contain entity type");
-		assert(sizeof...(T) == signature.size());
-
-		if(size + 1 > capacity) reallocate(capacity * 2);
-		entities[size] = entity;
-		(
-		    [&] {
-			    auto it = std::find_if(columns.begin(), columns.end(), [](const column& c) {
-				    return c.component_id == type_id<std::remove_cvref_t<T>>(); // todo: compare performance of this vs signature::index_of
-			    });
-			    assert(it != columns.end());
-			    std::construct_at(reinterpret_cast<std::remove_cvref_t<T>*>(it->data) + size, std::forward<T>(components));
-		    }(),
-		    ...
-		);
-		return size++;
+	inline size_type archetype::add_entity(entity entity, T&&... components) {
+		if(m_size == m_capacity) reserve(m_capacity * 2);
+		assert(column<std::remove_cvref_t<T>>() && ...); // archetype does not contain these components
+		m_entities[m_size] = entity;
+		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
+		return m_size++;
 	}
 
-	// returns the entity that took its place or `null_entity` if the archetype is empty
-	inline entity archetype::remove_entity(size_t row) {
-		assert(row < size);
-		--size;
-		if(size == 0) return null_entity;
-		entities[row] = entities[size];
-		for(size_type i = 0; i < size_type(signature.size()); ++i) {
-			column& column = columns[i];
-			if(column.ops.is_trivially_copyable()) {
-				memcpy(column.data + column.element_size * row, column.data + column.element_size * size, column.element_size);
+	inline entity archetype::remove_entity(size_type row) {
+		assert(row < m_size);
+		--m_size;
+
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+
+			if(ops.is_trivially_copyable()) {
+				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size, ops.component_size);
 			} else {
-				if(!column.ops.is_trivially_destructible()) column.ops.destroy(column.data + column.element_size * row);
-				column.ops.relocate(column.data + column.element_size * row, column.data + column.element_size * size);
+				if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
+				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
 			}
 		}
-		return entities[row];
+
+		if(row == m_size) return null_entity;
+		m_entities[row] = m_entities[m_size];
+		return m_entities[row];
 	}
 
 	template<typename T>
-	T* archetype::data() {
+	inline T* archetype::column() noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return entities;
+			return m_entities;
 		} else {
-			const component_id* it = std::ranges::find(signature.components.begin(), signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == signature.components.end()) return nullptr;
-			return reinterpret_cast<T*>(columns[it - signature.components.begin()].data);
+			const component_id* it =
+			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
+			if(it == m_signature.components.end()) return nullptr;
+			return reinterpret_cast<T*>(m_columns[it - m_signature.components.begin()]);
 		}
 	}
 
 	template<typename T>
-	const T* archetype::data() const {
+	inline const T* archetype::column() const noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return entities;
+			return m_entities;
 		} else {
-			const component_id* it = std::ranges::find(signature.components.begin(), signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == signature.components.end()) return nullptr;
-			return reinterpret_cast<const T*>(columns[it - signature.components.begin()].data);
+			const component_id* it =
+			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
+			if(it == m_signature.components.end()) return nullptr;
+			return reinterpret_cast<const T*>(m_columns[it - m_signature.components.begin()]);
 		}
 	}
 
-	template<typename... T>
-	bool archetype::contains() const {
-		return ([&]() {
-			if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-				return true;
-			} else {
-				return signature.contains<T>();
-			}
-		}() && ...);
+	inline size_type archetype::size() const noexcept {
+		return m_size;
 	}
 
-	inline void archetype::reallocate(size_t newCapacity) {
-		entities = static_cast<entity*>(realloc(entities, newCapacity * sizeof(entity)));
-		for(size_type i = 0; i < size_type(signature.size()); ++i) {
-			column& column = columns[i];
-			if(column.ops.is_trivially_copyable()) {
-				column.data = static_cast<char*>(realloc(column.data, newCapacity * column.element_size));
+	inline void archetype::reserve(size_type capacity) {
+		assert(capacity > m_size);
+
+		auto* new_entities = static_cast<entity*>(realloc(m_entities, capacity * sizeof(entity)));
+		if(!new_entities) throw std::bad_alloc();
+		m_entities = new_entities;
+
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+
+			if(ops.is_trivially_copyable()) {
+				void* new_column = realloc(m_columns[i], capacity * ops.component_size);
+				if(!new_column) throw std::bad_alloc();
+				m_columns[i] = new_column;
 			} else {
-				char* newData = static_cast<char*>(malloc(newCapacity * column.element_size)); // todo: padding, error handling
-				column.ops.mass_relocate(newData, column.data, size);
-				free(column.data);
-				column.data = newData;
+				char* new_column = static_cast<char*>(malloc(capacity * ops.component_size));
+				if(!new_column) throw std::bad_alloc();
+				ops.mass_relocate(new_column, column, m_size);
+				free(column);
+				m_columns[i] = new_column;
 			}
 		}
-		capacity = newCapacity;
+
+		m_capacity = capacity;
 	}
 
 } // namespace ecs

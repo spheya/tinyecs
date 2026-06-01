@@ -64,10 +64,11 @@ namespace ecs {
 			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, ecs::entity&> || ...), "Cannot get a mutable reference to entity");
 
 			for(auto& archetype : archetypes) {
-				auto base = std::make_tuple(archetype.template data<std::remove_cvref_t<Args>>()...);
-				if(((std::get<decltype(archetype.template data<std::remove_cvref_t<Args>>())>(base) == nullptr) || ...)) continue;
-				size_type size = archetype.size;
-				for(size_type i = 0; i < size; ++i) std::forward<Func>(func)(std::get<decltype(archetype.template data<std::remove_cvref_t<Args>>())>(base)[i]...);
+				auto base = std::make_tuple(archetype.template column<std::remove_cvref_t<Args>>()...);
+				if(((std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base) == nullptr) || ...)) continue;
+				size_type size = archetype.size();
+				for(size_type i = 0; i < size; ++i)
+					std::forward<Func>(func)(std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base)[i]...);
 			}
 		}
 	} // namespace internal
@@ -113,39 +114,35 @@ namespace ecs {
 	inline bool world::has_components(entity e) const noexcept {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		return archetype.signature.contains<T...>();
+		return !(archetype.column<T>() || ...);
 	}
 
 	template<typename T>
-	inline reference<T> world::get_component(entity e) {
-		entity_record record = entities.at(e);
-		archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
-		return archetype.data<std::remove_const_t<T>>()[record.row];
+	inline component_reference<T> world::get_component(entity e) {
+		return std::get<0>(get_components<T>(e));
 	}
 
 	template<typename T>
-	inline reference<const T> world::get_component(entity e) const {
-		entity_record record = entities.at(e);
-		const archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains(type_id<std::remove_const_t<T>>()));
-		return archetype.data<std::remove_const_t<T>>()[record.row];
+	inline component_reference<const T> world::get_component(entity e) const {
+		return std::get<0>(get_components<T>(e));
 	}
 
 	template<typename... T>
 	inline entity_view<T...> world::get_components(entity e) {
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains<T...>());
-		return entity_view<T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
+		std::tuple<T*...> columns(archetype.column<T>()...);
+		assert(std::get<T*>(columns) && ...); // entity doesnt contain all components
+		return entity_view<T...>(std::get<T*>(columns)[record.row]...);
 	}
 
 	template<typename... T>
 	inline entity_view<const T...> world::get_components(entity e) const {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		assert(archetype.signature.contains<std::remove_const_t<T>...>());
-		return entity_view<const T...>(archetype.data<std::remove_const_t<T>>()[record.row]...);
+		std::tuple<const T*...> columns(archetype.column<const T>()...);
+		assert(std::get<T*>(columns) && ...); // entity doesnt contain all components
+		return entity_view<T...>(std::get<const T*>(columns)[record.row]...);
 	}
 
 	template<typename Func>

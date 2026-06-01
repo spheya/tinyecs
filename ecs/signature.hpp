@@ -12,15 +12,6 @@ namespace ecs {
 
 	struct signature {
 		ecs::small_vector<component_id, 4> components;
-
-		template<typename... T>
-		[[nodiscard]] bool contains() const noexcept;
-		[[nodiscard]] bool contains(component_id component) const noexcept;
-
-		template<typename T>
-		[[nodiscard]] size_t index_of() const noexcept;
-		[[nodiscard]] size_t index_of(component_id component) const noexcept;
-		[[nodiscard]] size_t size() const noexcept;
 	};
 
 	template<typename... T>
@@ -33,36 +24,12 @@ namespace ecs {
 		return result;
 	}
 
-	template<typename... T>
-	inline bool signature::contains() const noexcept {
-		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
-		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
-		return (contains(type_id<T>()) && ...);
-	}
-
-	inline bool signature::contains(component_id component) const noexcept {
-		return std::ranges::find(components.begin(), components.end(), component)
-		       != components.end(); // todo: binary search or sth, make use of the fact this list is sorted
-	}
-
-	template<typename T>
-	inline size_t signature::index_of() const noexcept {
-		static_assert(std::is_same_v<T, std::remove_cvref_t<T>>, "Archetype signature can only contain non-reference, unqualified types");
-		static_assert(!std::is_same_v<T, entity>, "Archetype signature cannot contain entity type");
-		return index_of(type_id<T>());
-	}
-
-	inline size_t signature::index_of(component_id component) const noexcept {
-		const component_id* it = std::ranges::find(components.begin(), components.end(), component);
-		assert(it != components.end());
-		return size_t(it - components.begin()); // todo: binary search or sth, make use of the fact this list is sorted
-	}
-
-	inline size_t signature::size() const noexcept {
-		return components.size();
-	}
-
 	inline bool operator==(const signature& lhs, const signature& rhs) {
+		if(lhs.components.size() != rhs.components.size()) return false;
+		return memcmp(lhs.components.data(), rhs.components.data(), lhs.components.size() * sizeof(component_id)) == 0;
+	}
+
+	inline bool operator!=(const signature& lhs, const signature& rhs) {
 		if(lhs.components.size() != rhs.components.size()) return false;
 		return memcmp(lhs.components.data(), rhs.components.data(), lhs.components.size() * sizeof(component_id)) == 0;
 	}
