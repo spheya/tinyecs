@@ -19,7 +19,7 @@ function(init_target name)
 			-Wno-c99-compat
 
 			-Wno-unsafe-buffer-usage         # it's stupid
-			-Wno-shadow-field-in-constructor # i like doing this
+			-Wno-padded                      # not super useful
 
 			-fdiagnostics-show-template-tree
 			-fdiagnostics-show-option

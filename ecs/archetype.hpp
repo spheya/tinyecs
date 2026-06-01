@@ -209,7 +209,7 @@ namespace ecs {
 			const component_id* it =
 			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
 			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<T*>(m_columns[it - m_signature.components.begin()]);
+			return reinterpret_cast<T*>(m_columns[size_type(it - m_signature.components.begin())]);
 		}
 	}
 
@@ -221,7 +221,7 @@ namespace ecs {
 			const component_id* it =
 			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
 			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<const T*>(m_columns[it - m_signature.components.begin()]);
+			return reinterpret_cast<const T*>(m_columns[size_type(it - m_signature.components.begin())]);
 		}
 	}
 

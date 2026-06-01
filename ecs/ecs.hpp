@@ -141,8 +141,8 @@ namespace ecs {
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		std::tuple<const T*...> columns(archetype.column<const T>()...);
-		TINYECS_ASSUME(std::get<T*>(columns) && ...); // entity doesnt contain all components
-		return entity_view<T...>(std::get<const T*>(columns)[record.row]...);
+		TINYECS_ASSUME(std::get<const T*>(columns) && ...); // entity doesnt contain all components
+		return entity_view<const T...>(std::get<const T*>(columns)[record.row]...);
 	}
 
 	template<typename Func>
