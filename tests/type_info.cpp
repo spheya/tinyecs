@@ -1,7 +1,6 @@
 #include <ecs/ecs.hpp>
 #include <gtest/gtest.h>
 
-
 TEST(type_info, same_type) {
 	EXPECT_EQ(ecs::type_id<int>(), ecs::type_id<int>());
 }
