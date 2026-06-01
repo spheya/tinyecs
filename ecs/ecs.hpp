@@ -53,7 +53,7 @@ namespace ecs {
 	public:
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
-		std::unordered_map<signature, size_t> archetype_lut;
+		std::unordered_map<signature, size_type> archetype_lut;
 		std::vector<archetype> archetypes;
 	};
 
