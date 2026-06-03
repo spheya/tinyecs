@@ -33,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt clang-tidy
+          sudo apt install clang-tidy
       - name: Create dummy.cpp file
         run: echo -e '#include "ecs/ecs.hpp" > dummy.cpp
       - name: Run clang-tidy
