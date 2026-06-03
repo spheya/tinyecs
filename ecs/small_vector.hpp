@@ -8,7 +8,6 @@
 
 #include "meta.hpp"
 
-
 namespace ecs {
 
 	template<typename T, size_type N>
