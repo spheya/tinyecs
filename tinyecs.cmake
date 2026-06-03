@@ -12,6 +12,7 @@ function(init_target name)
 			-Wno-c++11-compat-pedantic
 			-Wno-c++14-compat-pedantic
 			-Wno-c++17-compat-pedantic
+			-Wno-c++20-compat-pedantic
 			-Wno-c++98-compat
 			-Wno-c++11-compat
 			-Wno-c++14-compat
