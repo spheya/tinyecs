@@ -16,6 +16,7 @@ function(init_target name)
 			-Wno-c++11-compat
 			-Wno-c++14-compat
 			-Wno-c++17-compat
+			-Wno-c++20-compat
 			-Wno-c99-compat
 
 			-Wno-unsafe-buffer-usage # it's stupid
