@@ -18,7 +18,7 @@ struct entity_layout {};
 
 template<size_t N, typename... T>
 static void spawn_entities(ecs::world& world, entity_layout<N, T...> /* layout */) {
-	for(size_t i = 0; i < N; ++i) world.add_entity(init_component<T>()()...);
+	for(size_t i = 0; i < N; ++i) world.create_entity(init_component<T>()()...);
 }
 
 template<typename... T>
