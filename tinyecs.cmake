@@ -1,6 +1,6 @@
 function(init_target name)
 	if(MSVC)
-		target_compile_options(${name} PRIVATE /W4)
+		target_compile_options(${name} PRIVATE /w) # i dont care about what microsoft has to say
 	endif()
 
 	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -18,8 +18,8 @@ function(init_target name)
 			-Wno-c++17-compat
 			-Wno-c99-compat
 
-			-Wno-unsafe-buffer-usage         # it's stupid
-			-Wno-padded                      # not super useful
+			-Wno-unsafe-buffer-usage # it's stupid
+			-Wno-padded              # not super useful
 
 			-fdiagnostics-show-template-tree
 			-fdiagnostics-show-option
