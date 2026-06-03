@@ -15,13 +15,13 @@ namespace {
 
 TEST(world, single_entity) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 
-	EXPECT_TRUE(world.has_component<Position>(entity));
-	EXPECT_TRUE(world.has_component<Velocity>(entity));
-	EXPECT_FALSE(world.has_component<Tag>(entity));
+	EXPECT_TRUE(world.has<Position>(entity));
+	EXPECT_TRUE(world.has<Velocity>(entity));
+	EXPECT_FALSE(world.has<Tag>(entity));
 
-	auto&& [pos, vel] = world.get_components<Position, Velocity>(entity);
+	auto&& [pos, vel] = world.get<Position, Velocity>(entity);
 	EXPECT_EQ(pos.x, 1.0f);
 	EXPECT_EQ(pos.y, 2.0f);
 	EXPECT_EQ(vel.x, 3.0f);
@@ -30,49 +30,49 @@ TEST(world, single_entity) {
 
 TEST(world, empty_entity) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity();
-	EXPECT_FALSE(world.has_component<Position>(entity));
+	tinyecs::entity entity = world.create_entity();
+	EXPECT_FALSE(world.has<Position>(entity));
 }
 
 TEST(world, modify_components) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	world.get_component<Position>(entity).x = 67.0f;
-	EXPECT_EQ(world.get_component<Position>(entity).x, 67.0f);
+	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	world.get<Position>(entity).x = 67.0f;
+	EXPECT_EQ(world.get<Position>(entity).x, 67.0f);
 }
 
 TEST(world, const_components) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	EXPECT_EQ(world.get_component<const Position>(entity).x, 1.0f);
+	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	EXPECT_EQ(world.get<const Position>(entity).x, 1.0f);
 }
 
 TEST(world, const_world) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 	const tinyecs::world& w = world;
-	EXPECT_EQ(w.get_component<Position>(entity).x, 1.0f);
+	EXPECT_EQ(w.get<Position>(entity).x, 1.0f);
 }
 
 TEST(world, multiple_entities) {
 	tinyecs::world world;
-	tinyecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	tinyecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
+	tinyecs::entity entity1 = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity2 = world.create_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
 
-	EXPECT_TRUE(world.has_component<Position>(entity1));
-	EXPECT_TRUE(world.has_component<Velocity>(entity1));
-	EXPECT_FALSE(world.has_component<Tag>(entity1));
-	EXPECT_TRUE(world.has_component<Position>(entity2));
-	EXPECT_TRUE(world.has_component<Velocity>(entity2));
-	EXPECT_FALSE(world.has_component<Tag>(entity2));
+	EXPECT_TRUE(world.has<Position>(entity1));
+	EXPECT_TRUE(world.has<Velocity>(entity1));
+	EXPECT_FALSE(world.has<Tag>(entity1));
+	EXPECT_TRUE(world.has<Position>(entity2));
+	EXPECT_TRUE(world.has<Velocity>(entity2));
+	EXPECT_FALSE(world.has<Tag>(entity2));
 
-	auto&& [pos1, vel1] = world.get_components<Position, Velocity>(entity1);
+	auto&& [pos1, vel1] = world.get<Position, Velocity>(entity1);
 	EXPECT_EQ(pos1.x, 1.0f);
 	EXPECT_EQ(pos1.y, 2.0f);
 	EXPECT_EQ(vel1.x, 3.0f);
 	EXPECT_EQ(vel1.y, 4.0f);
 
-	auto&& [pos2, vel2] = world.get_components<Position, Velocity>(entity2);
+	auto&& [pos2, vel2] = world.get<Position, Velocity>(entity2);
 	EXPECT_EQ(pos2.x, 5.0f);
 	EXPECT_EQ(pos2.y, 6.0f);
 	EXPECT_EQ(vel2.x, 7.0f);
@@ -81,44 +81,44 @@ TEST(world, multiple_entities) {
 
 TEST(world, multiple_archetypes) {
 	tinyecs::world world;
-	tinyecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	tinyecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f });
+	tinyecs::entity entity1 = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity2 = world.create_entity(Position{ .x = 5.0f, .y = 6.0f });
 
-	EXPECT_TRUE(world.has_component<Position>(entity1));
-	EXPECT_TRUE(world.has_component<Velocity>(entity1));
-	EXPECT_FALSE(world.has_component<Tag>(entity1));
-	EXPECT_TRUE(world.has_component<Position>(entity2));
-	EXPECT_FALSE(world.has_component<Velocity>(entity2));
-	EXPECT_FALSE(world.has_component<Tag>(entity2));
+	EXPECT_TRUE(world.has<Position>(entity1));
+	EXPECT_TRUE(world.has<Velocity>(entity1));
+	EXPECT_FALSE(world.has<Tag>(entity1));
+	EXPECT_TRUE(world.has<Position>(entity2));
+	EXPECT_FALSE(world.has<Velocity>(entity2));
+	EXPECT_FALSE(world.has<Tag>(entity2));
 
-	auto&& [pos1, vel1] = world.get_components<Position, Velocity>(entity1);
+	auto&& [pos1, vel1] = world.get<Position, Velocity>(entity1);
 	EXPECT_EQ(pos1.x, 1.0f);
 	EXPECT_EQ(pos1.y, 2.0f);
 	EXPECT_EQ(vel1.x, 3.0f);
 	EXPECT_EQ(vel1.y, 4.0f);
 
-	auto& pos2 = world.get_component<Position>(entity2);
+	auto& pos2 = world.get<Position>(entity2);
 	EXPECT_EQ(pos2.x, 5.0f);
 	EXPECT_EQ(pos2.y, 6.0f);
 }
 
 TEST(world, empty_components) {
 	tinyecs::world world;
-	tinyecs::entity entity = world.add_entity(Tag{});
-	EXPECT_TRUE(world.has_component<Tag>(entity));
+	tinyecs::entity entity = world.create_entity(Tag{});
+	EXPECT_TRUE(world.has<Tag>(entity));
 }
 
 TEST(world, entity_removal) {
 	tinyecs::world world;
-	tinyecs::entity remove = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
-	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity remove = world.create_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
+	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 	world.remove_entity(remove);
 
-	EXPECT_TRUE(world.has_component<Position>(entity));
-	EXPECT_TRUE(world.has_component<Velocity>(entity));
-	EXPECT_FALSE(world.has_component<Tag>(entity));
+	EXPECT_TRUE(world.has<Position>(entity));
+	EXPECT_TRUE(world.has<Velocity>(entity));
+	EXPECT_FALSE(world.has<Tag>(entity));
 
-	auto&& [pos, vel] = world.get_components<Position, Velocity>(entity);
+	auto&& [pos, vel] = world.get<Position, Velocity>(entity);
 	EXPECT_EQ(pos.x, 1.0f);
 	EXPECT_EQ(pos.y, 2.0f);
 	EXPECT_EQ(vel.x, 3.0f);

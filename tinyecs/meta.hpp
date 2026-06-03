@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 #include <type_traits>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
@@ -70,6 +71,22 @@ namespace tinyecs {
 
 	template<typename T>
 	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, reference<T>>;
+
+	template<typename... T>
+	struct component_pack;
+
+	template<typename T>
+	struct component_pack<T> {
+		using type = T;
+	};
+
+	template<typename First, typename Second, typename... Rest>
+	struct component_pack<First, Second, Rest...> {
+		using type = std::tuple<First, Second, Rest...>;
+	};
+
+	template<typename... T>
+	using component_pack_t = component_pack<T...>::type;
 
 	inline static std::atomic<type_index> type_counter; // NOLINT
 
