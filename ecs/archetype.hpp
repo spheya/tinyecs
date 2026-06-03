@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -166,8 +168,7 @@ namespace ecs {
 			    m_component_ops[index] = create_component_operations<T>();
 			    if(!m_columns[index]) throw std::bad_alloc();
 		    }(),
-		    ...
-		);
+		    ...);
 	}
 
 	template<typename... T>

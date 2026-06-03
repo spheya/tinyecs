@@ -164,7 +164,7 @@ namespace ecs {
 	template<typename T, size_type N>
 	void small_vector<T, N>::destroy() {
 		std::destroy_n(m_data, m_size);
-		if(m_data != local_storage()) free(static_cast<void*>(m_data));
+		if(m_data != local_storage()) free(m_data);
 	}
 
 	template<typename T, size_type N>

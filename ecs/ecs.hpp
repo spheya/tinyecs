@@ -1,9 +1,10 @@
 #pragma once
 
-#include <cassert>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "archetype.hpp" // IWYU pragma: export
 #include "meta.hpp"      // IWYU pragma: export

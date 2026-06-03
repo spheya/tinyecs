@@ -51,7 +51,7 @@ jobs:
         run: |
           result=0
           for file in $(git ls-files 'ecs/*.hpp'); do
-            if ! include-what-you-use -std=c++20 -Xiwyu --error "$file"; then
+            if ! include-what-you-use -std=c++20 -Xiwyu --error -Xiwyu --mapping_file=iwyu.imp "$file"; then
               result=1
             fi
           done
