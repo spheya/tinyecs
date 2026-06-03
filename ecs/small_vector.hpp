@@ -1,12 +1,10 @@
 #pragma once
 
-#include <cassert>
 #include <cstdlib>
-#include <cstring>
+#include <utility>
 #include <initializer_list>
 #include <memory>
 #include <new>
-#include <type_traits>
 
 #include "meta.hpp"
 
