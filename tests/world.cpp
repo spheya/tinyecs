@@ -1,5 +1,5 @@
-#include <tinyecs/world.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/world.hpp>
 
 namespace {
 	struct Position {

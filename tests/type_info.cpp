@@ -1,5 +1,5 @@
-#include <tinyecs/meta.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/meta.hpp>
 
 TEST(type_info, same_type) {
 	EXPECT_EQ(tinyecs::type_id<int>(), tinyecs::type_id<int>());

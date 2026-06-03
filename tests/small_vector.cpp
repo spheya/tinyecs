@@ -1,5 +1,6 @@
-#include <tinyecs/small_vector.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/small_vector.hpp>
+
 
 TEST(small_vector, push) {
 	tinyecs::small_vector<int, 2> vec;
