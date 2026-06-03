@@ -114,6 +114,7 @@ namespace tinyecs {
 	template<typename... T>
 	[[nodiscard]] bool world::has_any(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		return (archetype.column<T>() || ...);
@@ -121,6 +122,8 @@ namespace tinyecs {
 
 	template<typename... T>
 	inline component_pack_t<component_reference<T>...> world::get(entity e) {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		if constexpr (sizeof...(T) == 1) {
 			return *try_get<T...>(e);
 		} else {
@@ -132,6 +135,8 @@ namespace tinyecs {
 
 	template<typename... T>
 	inline component_pack_t<component_reference<const T>...> world::get(entity e) const {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		if constexpr (sizeof...(T) == 1) {
 			return *try_get<const T...>(e);
 		} else {
