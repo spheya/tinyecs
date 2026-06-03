@@ -1,3 +1,6 @@
+#include <cstddef>
+#include <cstdint>
+
 #include <benchmark/benchmark.h>
 #include <ecs/ecs.hpp>
 
@@ -49,14 +52,13 @@ static void complex_scene(benchmark::State& state) {
 	    entity_layout<Size, small_component<1>, big_component<4>>,
 	    entity_layout<Size, big_component<0>, medium_component<1>, small_component<1>>,
 	    entity_layout<Size / 4, medium_component<0>, small_component<0>, small_component<1>>,
-		entity_layout<Size / 4, big_component<0>, big_component<1>, big_component<2>, small_component<0>, medium_component<0>, small_component<1>>,
-		entity_layout<Size, small_component<0>, small_component<2>>,
-		entity_layout<Size, small_component<1>, small_component<2>>,
-		entity_layout<Size, small_component<3>, small_component<2>>,
-		entity_layout<Size, small_component<4>, small_component<2>>,
-		entity_layout<Size / 4, small_component<0>, small_component<1>, medium_component<0>, medium_component<1>, medium_component<2>>,
-		entity_layout<Size, small_component<5>, small_component<2>>
-	>();
+	    entity_layout<Size / 4, big_component<0>, big_component<1>, big_component<2>, small_component<0>, medium_component<0>, small_component<1>>,
+	    entity_layout<Size, small_component<0>, small_component<2>>,
+	    entity_layout<Size, small_component<1>, small_component<2>>,
+	    entity_layout<Size, small_component<3>, small_component<2>>,
+	    entity_layout<Size, small_component<4>, small_component<2>>,
+	    entity_layout<Size / 4, small_component<0>, small_component<1>, medium_component<0>, medium_component<1>, medium_component<2>>,
+	    entity_layout<Size, small_component<5>, small_component<2>>>();
 
 	for(auto _ : state) {
 		world.each([](small_component<0>& a, small_component<1> b) { a = a + b; });
@@ -94,8 +96,7 @@ static void archetype_explosion(benchmark::State& state) {
 	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<22>>,
 	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<23>>,
 	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<24>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<25>>
-	>();
+	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<25>>>();
 
 	for(auto _ : state) {
 		world.each([](small_component<0>& a, small_component<1> b) { a = a + b; });

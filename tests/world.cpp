@@ -1,15 +1,17 @@
 #include <ecs/ecs.hpp>
 #include <gtest/gtest.h>
 
-struct Position {
-	float x, y;
-};
+namespace {
+	struct Position {
+		float x, y;
+	};
 
-struct Velocity {
-	float x, y;
-};
+	struct Velocity {
+		float x, y;
+	};
 
-struct Tag {};
+	struct Tag {};
+} // namespace
 
 TEST(world, single_entity) {
 	ecs::world world;

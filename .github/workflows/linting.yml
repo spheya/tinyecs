@@ -14,13 +14,13 @@ jobs:
           sudo apt-get install -y wget lsb-release software-properties-common gnupg
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 21
-          sudo apt-get install -y clang-format-21
+          sudo ./llvm.sh 22
+          sudo apt-get install -y clang-format-22
       - name: Run clang-format
         run: |
           result=0
-          for file in $(git ls-files '*.cpp' '*.h' '*.hpp' ':!**/external/**'); do
-            if ! clang-format-21 --dry-run --Werror "$file"; then
+          for file in $(git ls-files '*.cpp' '*.hpp'); do
+            if ! clang-format-22 --dry-run --Werror "$file"; then
               result=1
             fi
           done
@@ -30,29 +30,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
-          fetch-depth: 0
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev ninja-build clang-tidy
-      - name: CMake Configure
-        run: cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTINYECS_THIRD_PARTY_BENCHMARKS=ON
+          sudo apt install clang-tidy
+      - name: Create dummy.cpp file
+        run: echo -e '#include "ecs/ecs.hpp"' > dummy.cpp
       - name: Run clang-tidy
-        run: git diff -z --name-only origin/${{ github.base_ref }}...HEAD -- '*.cpp' ':!**/external/**' | xargs -r -0 clang-tidy -p build
+        run: clang-tidy dummy.cpp --header-filter=".*" -- -std=c++20
 
   include-what-you-use:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev ninja-build iwyu
-      - name: Build
+          sudo apt install iwyu
+      - name: Run include-what-you-use
         run: |
-          cmake -B build -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DTINYECS_USE_IWYU=On -DTINYECS_THIRD_PARTY_BENCHMARKS=ON
-          cmake --build build --parallel $(nproc)
+          result=0
+          for file in $(git ls-files 'ecs/*.hpp'); do
+            if ! include-what-you-use -std=c++20 -I"./ecs/" -Xiwyu --error -Xiwyu --mapping_file=iwyu.imp "$file"; then
+              result=1
+            fi
+          done
+          exit $result

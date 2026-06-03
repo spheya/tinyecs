@@ -31,5 +31,9 @@ jobs:
             export CC=clang
             export CXX=clang++
           fi
-          cmake -B build -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          cmake -B build -G Ninja -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DTINYECS_THIRD_PARTY_BENCHMARKS=ON
           cmake --build build --parallel $(nproc)
+      - name: Run Tests
+        run: |
+          cd build/tests
+          ctest

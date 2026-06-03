@@ -62,9 +62,7 @@ int main() {
 
 		// render
 		instances.clear();
-		world.each([&](transform trans, renderer render) {
-			instances.emplace_back(transform{ trans }, render);
-		});
+		world.each([&](transform trans, renderer render) { instances.emplace_back(transform{ trans }, render); });
 
 		graphics.draw(instances);
 	}

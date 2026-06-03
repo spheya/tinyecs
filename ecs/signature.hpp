@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <cassert>
+#include <cstring>
 #include <functional>
 #include <type_traits>
 
