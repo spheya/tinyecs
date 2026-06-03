@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -31,7 +32,7 @@ namespace tinyecs {
 		[[nodiscard]] bool has_any(entity e) const noexcept;
 
 		template<typename... T>
-		[[nodiscard]] component_pack_t<component_reference<T>...>  get(entity e);
+		[[nodiscard]] component_pack_t<component_reference<T>...> get(entity e);
 
 		template<typename... T>
 		[[nodiscard]] component_pack_t<component_reference<const T>...> get(entity e) const;
@@ -124,7 +125,7 @@ namespace tinyecs {
 	inline component_pack_t<component_reference<T>...> world::get(entity e) {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
-		if constexpr (sizeof...(T) == 1) {
+		if constexpr(sizeof...(T) == 1) {
 			return *try_get<T...>(e);
 		} else {
 			component_pack_t<T*...> components = try_get<T...>(e);
@@ -137,7 +138,7 @@ namespace tinyecs {
 	inline component_pack_t<component_reference<const T>...> world::get(entity e) const {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
-		if constexpr (sizeof...(T) == 1) {
+		if constexpr(sizeof...(T) == 1) {
 			return *try_get<const T...>(e);
 		} else {
 			component_pack_t<const T*...> components = try_get<const T...>(e);
