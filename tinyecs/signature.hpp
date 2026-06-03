@@ -24,6 +24,19 @@ namespace tinyecs {
 		return result;
 	}
 
+	template<typename... T>
+	inline signature extend_signature(signature s) {
+		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
+		signature result{ std::move(s.components) };
+		result.components.reserve(s.components.size() + sizeof...(T));
+		(result.components.push_back(type_id<T>()), ...);
+		std::ranges::sort(result.components.begin(), result.components.end());
+		TINYECS_ASSUME(std::ranges::adjacent_find(result.components.begin(), result.components.end()) == result.components.end());
+		return result;
+	}
+
 	inline bool operator==(const signature& lhs, const signature& rhs) {
 		if(lhs.components.size() != rhs.components.size()) return false;
 		return memcmp(lhs.components.data(), rhs.components.data(), lhs.components.size() * sizeof(component_id)) == 0;

@@ -37,6 +37,9 @@ namespace tinyecs {
 		template<typename... T>
 		void init();
 
+		template<typename... T>
+		archetype extend();
+
 		// returns the row that the entity lives on
 		template<typename... T>
 		size_type add_entity(entity entity, T&&... components);
@@ -172,6 +175,43 @@ namespace tinyecs {
 			    if(!m_columns[index]) throw std::bad_alloc();
 		    }(),
 		    ...);
+	}
+
+	template<typename... T>
+	archetype archetype::extend() {
+		// todo: avoid duplicate logic between extend() and init()
+		static_assert(sizeof...(T) != 0);
+		archetype result(extend_signature<T...>(m_signature));
+		result.m_columns.resize(result.m_signature.components.size());
+		result.m_component_ops.resize(result.m_signature.components.size());
+		result.m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
+		if(!result.m_entities) throw std::bad_alloc();
+
+		// copy over existing component ops
+		for(size_type i = 0; i < m_component_ops.size(); ++i) {
+			component_id type_id = m_signature.components[i];
+			const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_id);
+			TINYECS_ASSUME(it != result.m_signature.components.end());
+			auto index = size_type(it - result.m_signature.components.begin());
+			result.m_component_ops[index] = m_component_ops[i];
+			result.m_columns[index] = malloc(initial_capacity * m_component_ops[i].component_size);
+			if(!result.m_columns[index]) throw std::bad_alloc();
+		}
+
+		// create new component ops
+		(
+		    [&]() {
+			    const component_id* it =
+			        std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_id<std::remove_cvref_t<T>>());
+			    TINYECS_ASSUME(it != result.m_signature.components.end());
+			    auto index = size_type(it - result.m_signature.components.begin());
+			    result.m_columns[index] = malloc(initial_capacity * sizeof(T));
+			    result.m_component_ops[index] = create_component_operations<T>();
+			    if(!result.m_columns[index]) throw std::bad_alloc();
+		    }(),
+		    ...);
+
+		return result;
 	}
 
 	template<typename... T>
