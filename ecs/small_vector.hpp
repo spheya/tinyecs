@@ -1,12 +1,13 @@
 #pragma once
 
 #include <cstdlib>
-#include <utility>
 #include <initializer_list>
 #include <memory>
 #include <new>
+#include <utility>
 
 #include "meta.hpp"
+
 
 namespace ecs {
 
@@ -162,7 +163,7 @@ namespace ecs {
 	template<typename T, size_type N>
 	void small_vector<T, N>::destroy() {
 		std::destroy_n(m_data, m_size);
-		if(m_data != local_storage()) free(static_cast<void*>(m_data));
+		if(m_data != local_storage()) free(reinterpret_cast<void*>(m_data));
 	}
 
 	template<typename T, size_type N>
@@ -278,7 +279,7 @@ namespace ecs {
 				std::uninitialized_copy_n(local_storage(), m_size, m_data);
 			} else {
 				// realloc is not great if the size is not close to the capacity, but I don't think that case happens a lot
-				void* newData = realloc(static_cast<void*>(m_data), capacity * sizeof(T));
+				void* newData = realloc(reinterpret_cast<void*>(m_data), capacity * sizeof(T));
 				if(newData == nullptr) throw std::bad_alloc();
 				m_data = static_cast<T*>(newData);
 			}
@@ -287,7 +288,7 @@ namespace ecs {
 			if(newData == nullptr) throw std::bad_alloc();
 			std::uninitialized_move_n(m_data, m_size, newData);
 			std::destroy_n(m_data, m_size);
-			if(m_data != local_storage()) free(static_cast<void*>(m_data));
+			if(m_data != local_storage()) free(reinterpret_cast<void*>(m_data));
 			m_data = newData;
 		}
 		m_capacity = capacity;
