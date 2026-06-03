@@ -1,14 +1,14 @@
-#include <ecs/ecs.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/meta.hpp>
 
 TEST(type_info, same_type) {
-	EXPECT_EQ(ecs::type_id<int>(), ecs::type_id<int>());
+	EXPECT_EQ(tinyecs::type_id<int>(), tinyecs::type_id<int>());
 }
 
 TEST(type_info, different_type) {
-	EXPECT_NE(ecs::type_id<int>(), ecs::type_id<float>());
+	EXPECT_NE(tinyecs::type_id<int>(), tinyecs::type_id<float>());
 }
 
 TEST(type_info, const_qualifier) {
-	EXPECT_NE(ecs::type_id<int>(), ecs::type_id<const int>());
+	EXPECT_NE(tinyecs::type_id<int>(), tinyecs::type_id<const int>());
 }

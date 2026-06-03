@@ -12,7 +12,7 @@
 #include "signature.hpp"
 #include "small_vector.hpp"
 
-namespace ecs {
+namespace tinyecs {
 
 	struct component_ops {
 		void (*destroy)(void* ptr);
@@ -256,4 +256,4 @@ namespace ecs {
 		m_capacity = capacity;
 	}
 
-} // namespace ecs
+} // namespace tinyecs

@@ -15,7 +15,7 @@
 #endif
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
-namespace ecs {
+namespace tinyecs {
 
 	using size_type = size_t;
 	using type_index = uint32_t;
@@ -79,4 +79,4 @@ namespace ecs {
 		return idx;
 	}
 
-} // namespace ecs
+} // namespace tinyecs

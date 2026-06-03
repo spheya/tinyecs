@@ -1,5 +1,5 @@
-#include <ecs/ecs.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/world.hpp>
 
 namespace {
 	struct Position {
@@ -14,8 +14,8 @@ namespace {
 } // namespace
 
 TEST(world, single_entity) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 
 	EXPECT_TRUE(world.has_component<Position>(entity));
 	EXPECT_TRUE(world.has_component<Velocity>(entity));
@@ -29,35 +29,35 @@ TEST(world, single_entity) {
 }
 
 TEST(world, empty_entity) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity();
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity();
 	EXPECT_FALSE(world.has_component<Position>(entity));
 }
 
 TEST(world, modify_components) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 	world.get_component<Position>(entity).x = 67.0f;
 	EXPECT_EQ(world.get_component<Position>(entity).x, 67.0f);
 }
 
 TEST(world, const_components) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 	EXPECT_EQ(world.get_component<const Position>(entity).x, 1.0f);
 }
 
 TEST(world, const_world) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	const ecs::world& w = world;
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	const tinyecs::world& w = world;
 	EXPECT_EQ(w.get_component<Position>(entity).x, 1.0f);
 }
 
 TEST(world, multiple_entities) {
-	ecs::world world;
-	ecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	ecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
+	tinyecs::world world;
+	tinyecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
 
 	EXPECT_TRUE(world.has_component<Position>(entity1));
 	EXPECT_TRUE(world.has_component<Velocity>(entity1));
@@ -80,9 +80,9 @@ TEST(world, multiple_entities) {
 }
 
 TEST(world, multiple_archetypes) {
-	ecs::world world;
-	ecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	ecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f });
+	tinyecs::world world;
+	tinyecs::entity entity1 = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::entity entity2 = world.add_entity(Position{ .x = 5.0f, .y = 6.0f });
 
 	EXPECT_TRUE(world.has_component<Position>(entity1));
 	EXPECT_TRUE(world.has_component<Velocity>(entity1));
@@ -103,15 +103,15 @@ TEST(world, multiple_archetypes) {
 }
 
 TEST(world, empty_components) {
-	ecs::world world;
-	ecs::entity entity = world.add_entity(Tag{});
+	tinyecs::world world;
+	tinyecs::entity entity = world.add_entity(Tag{});
 	EXPECT_TRUE(world.has_component<Tag>(entity));
 }
 
 TEST(world, entity_removal) {
-	ecs::world world;
-	ecs::entity remove = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
-	ecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	tinyecs::world world;
+	tinyecs::entity remove = world.add_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
+	tinyecs::entity entity = world.add_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
 	world.remove_entity(remove);
 
 	EXPECT_TRUE(world.has_component<Position>(entity));

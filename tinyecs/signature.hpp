@@ -8,10 +8,10 @@
 #include "meta.hpp"
 #include "small_vector.hpp"
 
-namespace ecs {
+namespace tinyecs {
 
 	struct signature {
-		ecs::small_vector<component_id, 4> components;
+		small_vector<component_id, 4> components;
 	};
 
 	template<typename... T>
@@ -34,11 +34,11 @@ namespace ecs {
 		return memcmp(lhs.components.data(), rhs.components.data(), lhs.components.size() * sizeof(component_id)) == 0;
 	}
 
-} // namespace ecs
+} // namespace tinyecs
 
 template<>
-struct std::hash<ecs::signature> {
-	std::size_t operator()(const ecs::signature& signature) const noexcept {
+struct std::hash<tinyecs::signature> {
+	std::size_t operator()(const tinyecs::signature& signature) const noexcept {
 		std::size_t hash = signature.components.size();
 		for(auto i : signature.components) hash ^= i + 0x9e3779b9 + (hash << 6) + (hash >> 2);
 		return hash;

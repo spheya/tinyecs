@@ -11,7 +11,7 @@
 #include "meta.hpp"      // IWYU pragma: export
 #include "signature.hpp" // IWYU pragma: export
 
-namespace ecs {
+namespace tinyecs {
 
 	template<typename... T>
 	using entity_view = std::tuple<component_reference<T>...>;
@@ -64,7 +64,7 @@ namespace ecs {
 		inline void
 		each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) { // NOLINT(cppcoreguidelines-missing-std-forward)
 			static_assert(is_unique_v<std::remove_cvref_t<Args>...>, "Components must be unique");
-			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, ecs::entity&> || ...), "Cannot get a mutable reference to entity");
+			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, tinyecs::entity&> || ...), "Cannot get a mutable reference to entity");
 
 			for(auto& archetype : archetypes) {
 				auto base = std::make_tuple(archetype.template column<std::remove_cvref_t<Args>>()...);
@@ -157,4 +157,4 @@ namespace ecs {
 		internal::each_impl(archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
-} // namespace ecs
+} // namespace tinyecs

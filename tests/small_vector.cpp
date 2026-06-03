@@ -1,8 +1,8 @@
-#include <ecs/small_vector.hpp>
 #include <gtest/gtest.h>
+#include <tinyecs/small_vector.hpp>
 
 TEST(small_vector, push) {
-	ecs::small_vector<int, 2> vec;
+	tinyecs::small_vector<int, 2> vec;
 	vec.push_back(6);
 	vec.push_back(7);
 	EXPECT_EQ(vec[0], 6);
@@ -11,7 +11,7 @@ TEST(small_vector, push) {
 }
 
 TEST(small_vector, local_storage) {
-	ecs::small_vector<int, 2> vec;
+	tinyecs::small_vector<int, 2> vec;
 	vec.push_back(6);
 	vec.push_back(7);
 	void* local = vec.data();
@@ -23,13 +23,13 @@ TEST(small_vector, local_storage) {
 }
 
 TEST(small_vector, capacity_growth) {
-	ecs::small_vector<int, 2> vec;
+	tinyecs::small_vector<int, 2> vec;
 	for(int i = 0; i < 100; ++i) vec.push_back(i);
-	for(int i = 0; i < 100; ++i) EXPECT_EQ(vec[ecs::size_type(i)], i);
+	for(int i = 0; i < 100; ++i) EXPECT_EQ(vec[tinyecs::size_type(i)], i);
 }
 
 TEST(small_vector, resize) {
-	ecs::small_vector<int, 4> vec;
+	tinyecs::small_vector<int, 4> vec;
 	void* local = vec.data();
 	vec.resize(4);
 	EXPECT_EQ(local, vec.data());
@@ -43,7 +43,7 @@ TEST(small_vector, resize) {
 }
 
 TEST(small_vector, initializer_list) {
-	ecs::small_vector<int, 4> vec = { 1, 2, 3, 4 };
+	tinyecs::small_vector<int, 4> vec = { 1, 2, 3, 4 };
 	EXPECT_EQ(vec[0], 1);
 	EXPECT_EQ(vec[1], 2);
 	EXPECT_EQ(vec[2], 3);
@@ -52,8 +52,8 @@ TEST(small_vector, initializer_list) {
 }
 
 TEST(small_vector, copy_constructor) {
-	ecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
-	ecs::small_vector<int, 4> vec2 = vec1; // NOLINT
+	tinyecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
+	tinyecs::small_vector<int, 4> vec2 = vec1; // NOLINT
 
 	EXPECT_EQ(vec2[0], 1);
 	EXPECT_EQ(vec2[1], 2);
@@ -63,8 +63,8 @@ TEST(small_vector, copy_constructor) {
 }
 
 TEST(small_vector, move_constructor) {
-	ecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
-	ecs::small_vector<int, 4> vec2 = std::move(vec1); // NOLINT
+	tinyecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
+	tinyecs::small_vector<int, 4> vec2 = std::move(vec1); // NOLINT
 
 	EXPECT_EQ(vec2[0], 1);
 	EXPECT_EQ(vec2[1], 2);
@@ -74,8 +74,8 @@ TEST(small_vector, move_constructor) {
 }
 
 TEST(small_vector, copy_assignment) {
-	ecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
-	ecs::small_vector<int, 4> vec2 = { 0, 1, 2, 3 };
+	tinyecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
+	tinyecs::small_vector<int, 4> vec2 = { 0, 1, 2, 3 };
 	vec2 = vec1;
 
 	EXPECT_EQ(vec2[0], 1);
@@ -86,8 +86,8 @@ TEST(small_vector, copy_assignment) {
 }
 
 TEST(small_vector, move_assignment) {
-	ecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
-	ecs::small_vector<int, 4> vec2 = { 0, 1, 2, 3 };
+	tinyecs::small_vector<int, 4> vec1 = { 1, 2, 3, 4 };
+	tinyecs::small_vector<int, 4> vec2 = { 0, 1, 2, 3 };
 	vec2 = std::move(vec1);
 
 	EXPECT_EQ(vec2[0], 1);

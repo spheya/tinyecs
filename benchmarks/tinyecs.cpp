@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include <benchmark/benchmark.h>
-#include <ecs/ecs.hpp>
+#include <tinyecs/tinyecs.hpp>
 
 #include "dummy_components.hpp"
 
