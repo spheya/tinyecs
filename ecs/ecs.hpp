@@ -5,9 +5,9 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "archetype.hpp"
-#include "meta.hpp"
-#include "signature.hpp"
+#include "archetype.hpp" // IWYU pragma: export
+#include "meta.hpp" // IWYU pragma: export
+#include "signature.hpp" // IWYU pragma: export
 
 namespace ecs {
 
@@ -50,7 +50,7 @@ namespace ecs {
 		template<typename Func>
 		void each(Func&& func) const;
 
-	public:
+	private:
 		entity nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> entities;
 		std::unordered_map<signature, size_type> archetype_lut;
@@ -59,7 +59,7 @@ namespace ecs {
 
 	namespace internal {
 		template<typename Archetypes, typename Func, typename... Args>
-		inline void each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) {
+		inline void each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) { // NOLINT(cppcoreguidelines-missing-std-forward)
 			static_assert(is_unique_v<std::remove_cvref_t<Args>...>, "Components must be unique");
 			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, ecs::entity&> || ...), "Cannot get a mutable reference to entity");
 
@@ -68,7 +68,7 @@ namespace ecs {
 				if(((std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base) == nullptr) || ...)) continue;
 				size_type size = archetype.size();
 				for(size_type i = 0; i < size; ++i)
-					std::forward<Func>(func)(std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base)[i]...);
+					func(std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base)[i]...);
 			}
 		}
 	} // namespace internal

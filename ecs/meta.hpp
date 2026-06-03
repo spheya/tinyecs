@@ -5,12 +5,14 @@
 #include <cstdint>
 #include <type_traits>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #if defined(NDEBUG) && (defined(__clang__) || defined(__GNUC__))
 	#define TINYECS_ASSUME(x) \
 		if(!(x)) __builtin_unreachable()
 #else
 	#define TINYECS_ASSUME(x) assert((x))
 #endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 namespace ecs {
 

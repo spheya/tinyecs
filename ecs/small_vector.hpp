@@ -21,7 +21,6 @@ namespace ecs {
 		using const_iterator = const T*;
 		constexpr static size_type local_storage_size = N;
 
-	public:
 		small_vector() noexcept;
 		small_vector(std::initializer_list<T> values);
 		small_vector(const small_vector<T, N>& other);
@@ -64,10 +63,9 @@ namespace ecs {
 
 	private:
 		void destroy();
-		T* local_storage() noexcept;
-		const T* local_storage() const noexcept;
+		[[nodiscard]] T* local_storage() noexcept;
+		[[nodiscard]] const T* local_storage() const noexcept;
 
-	private:
 		T* m_data;
 		size_type m_size = 0;
 		size_type m_capacity = N;
@@ -82,16 +80,13 @@ namespace ecs {
 	small_vector<T, N>::small_vector(std::initializer_list<T> values) : m_size(values.size()), m_capacity(values.size()) {
 		if(values.size() <= N) {
 			m_data = local_storage();
+			m_capacity = N;
 		} else {
 			m_data = static_cast<T*>(malloc(values.size() * sizeof(T)));
 			if(m_data == nullptr) throw std::bad_alloc();
 		}
 
-		if constexpr(std::is_trivially_copyable_v<T>) {
-			memcpy(m_data, values.begin(), values.size() * sizeof(T));
-		} else {
-			for(size_type i = 0; i < values.size(); ++i) std::construct_at(m_data + i, values[i]);
-		}
+		std::uninitialized_copy(values.begin(), values.end(), m_data);
 	}
 
 	template<typename T, size_type N>
@@ -103,11 +98,7 @@ namespace ecs {
 			if(m_data == nullptr) throw std::bad_alloc();
 		}
 
-		if constexpr(std::is_trivially_copyable_v<T>) {
-			memcpy(m_data, other.m_data, other.m_size * sizeof(T));
-		} else {
-			for(size_type i = 0; i < other.m_size; ++i) std::construct_at(m_data + i, other.m_data[i]);
-		}
+		std::uninitialized_copy_n(other.m_data, other.m_size, m_data);
 	}
 
 	template<typename T, size_type N>
@@ -125,11 +116,7 @@ namespace ecs {
 			if(m_data == nullptr) throw std::bad_alloc();
 		}
 
-		if constexpr(std::is_trivially_copyable_v<T>) {
-			memcpy(m_data, other.m_data, other.m_size * sizeof(T));
-		} else {
-			for(size_type i = 0; i < other.m_size; ++i) std::construct_at(m_data + i, other.m_data[i]);
-		}
+		std::uninitialized_copy_n(other.m_data, other.m_size, m_data);
 		return *this;
 	}
 
@@ -137,14 +124,8 @@ namespace ecs {
 	small_vector<T, N>::small_vector(small_vector<T, N>&& other) noexcept : m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity) {
 		if(other.m_data == other.local_storage()) {
 			m_data = local_storage();
-			if constexpr(std::is_trivially_copyable_v<T>) {
-				memcpy(m_data, other.m_data, other.m_size * sizeof(T));
-			} else {
-				for(size_type i = 0; i < other.m_size; ++i) {
-					std::construct_at(m_data + i, std::move(other.m_data[i]));
-					std::destroy_at(other.m_data + i);
-				}
-			}
+			std::uninitialized_move_n(other.m_data, other.m_size, m_data);
+			std::destroy_n(other.m_data, other.m_size);
 		}
 
 		other.m_data = other.local_storage();
@@ -163,14 +144,8 @@ namespace ecs {
 
 		if(other.m_data == other.local_storage()) {
 			m_data = local_storage();
-			if constexpr(std::is_trivially_copyable_v<T>) {
-				memcpy(m_data, other.m_data, other.m_size * sizeof(T));
-			} else {
-				for(size_type i = 0; i < other.m_size; ++i) {
-					std::construct_at(m_data + i, std::move(other.m_data[i]));
-					std::destroy_at(other.m_data + i);
-				}
-			}
+			std::uninitialized_move_n(other.m_data, other.m_size, m_data);
+			std::destroy_n(other.m_data, other.m_size);
 		}
 
 		other.m_data = other.local_storage();
@@ -188,9 +163,8 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::destroy() {
-		if constexpr(!std::is_trivially_destructible_v<T>)
-			for(T* it = m_data; it != m_data + m_size; ++it) std::destroy_at(it);
-		if(m_data != local_storage()) free(m_data);
+		std::destroy_n(m_data, m_size);
+		if(m_data != local_storage()) free(static_cast<void*>(m_data));
 	}
 
 	template<typename T, size_type N>
@@ -297,25 +271,24 @@ namespace ecs {
 	template<typename T, size_type N>
 	void small_vector<T, N>::reserve(size_type capacity) {
 		if(capacity < m_capacity) return;
+		TINYECS_ASSUME(capacity > N);
 
 		if constexpr(std::is_trivially_copyable_v<T>) {
 			if(m_data == local_storage()) {
 				m_data = static_cast<T*>(malloc(capacity * sizeof(T)));
 				if(m_data == nullptr) throw std::bad_alloc();
-				memcpy(m_data, local_storage(), m_size * sizeof(T));
+				std::uninitialized_copy_n(local_storage(), m_size, m_data);
 			} else {
 				// realloc is not great if the size is not close to the capacity, but I don't think that case happens a lot
-				void* newData = realloc(m_data, capacity * sizeof(T));
+				void* newData = realloc(static_cast<void*>(m_data), capacity * sizeof(T));
 				if(newData == nullptr) throw std::bad_alloc();
 				m_data = static_cast<T*>(newData);
 			}
 		} else {
 			T* newData = static_cast<T*>(malloc(capacity * sizeof(T)));
 			if(newData == nullptr) throw std::bad_alloc();
-			for(size_type i = 0; i < m_size; ++i) {
-				std::construct_at(newData + i, std::move(m_data[i]));
-				std::destroy_at(m_data + i);
-			}
+			std::uninitialized_move_n(m_data, m_size, newData);
+			std::destroy_n(m_data, m_size);
 			if(m_data != local_storage()) free(m_data);
 			m_data = newData;
 		}
@@ -324,32 +297,32 @@ namespace ecs {
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::resize(size_type size) {
-		if(size > m_capacity) reserve(size);
-
-		for(T* it = m_data + m_size; it < m_data + size; ++it) std::construct_at(it);
-
-		if constexpr(!std::is_trivially_destructible_v<T>)
-			for(T* it = m_data + size; it < m_data + m_size; ++it) std::destroy_at(it);
-
+		if(size > m_size) {
+			if(size > m_capacity) reserve(size);
+			std::uninitialized_default_construct_n(m_data + m_size, size - m_size);
+		} else if(size < m_size) {
+			std::destroy_n(m_data + size, m_size - size);
+		}
 		m_size = size;
 	}
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::clear() {
-		if constexpr(!std::is_trivially_destructible_v<T>)
-			for(T* it = m_data; it != m_data + m_size; ++it) std::destroy_at(it);
+		std::destroy_n(m_data, m_size);
 		m_size = 0;
 	}
 
 	template<typename T, size_type N>
 	T& small_vector<T, N>::operator[](size_type idx) noexcept {
 		TINYECS_ASSUME(m_size != 0);
+		TINYECS_ASSUME(m_size > idx);
 		return m_data[idx];
 	}
 
 	template<typename T, size_type N>
 	const T& small_vector<T, N>::operator[](size_type idx) const noexcept {
 		TINYECS_ASSUME(m_size != 0);
+		TINYECS_ASSUME(m_size > idx);
 		return m_data[idx];
 	}
 

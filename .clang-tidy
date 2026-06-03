@@ -7,9 +7,9 @@ Checks: >
   misc-*,
   modernize-*,
   performance-*,
+  portability-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
@@ -21,27 +21,31 @@ Checks: >
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-static-cast-downcast,
   -cppcoreguidelines-pro-type-union-access,
-  -cppcoreguidelines-pro-type-vararg,
   -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
-  -modernize-use-nullptr,
   -modernize-use-trailing-return-type,
   -modernize-return-braced-init-list,
   -performance-enum-size,
+  -modernize-use-trailing-return-type,
+  -portability-avoid-pragma-once,
   -readability-braces-around-statements,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -readability-math-missing-parentheses,
-  -readability-redundant-access-specifiers,
   -readability-uppercase-literal-suffix
 WarningsAsErrors: '*'
 FormatStyle: file
 SystemHeaders: false
 CheckOptions:
+  - key: bugprone-exception-escape.CheckMain
+    value: 'false'
   - key: misc-const-correctness.AnalyzeValues
     value: false
+  - key: readability-simplify-boolean-expr.IgnoreMacros
+    value: true
+...

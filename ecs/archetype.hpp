@@ -32,7 +32,6 @@ namespace ecs {
 		archetype& operator=(archetype&& other) noexcept;
 		~archetype();
 
-	public:
 		template<typename... T>
 		void init();
 
@@ -151,7 +150,7 @@ namespace ecs {
 
 	template<typename... T>
 	inline void archetype::init() {
-		TINYECS_ASSUME(m_columns.size() == sizeof...(T));
+		TINYECS_ASSUME(m_signature.components.size() == sizeof...(T));
 		m_columns.resize(sizeof...(T));
 		m_component_ops.resize(sizeof...(T));
 		m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));

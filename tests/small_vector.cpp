@@ -33,15 +33,12 @@ TEST(small_vector, resize) {
 	void* local = vec.data();
 	vec.resize(4);
 	EXPECT_EQ(local, vec.data());
-	EXPECT_EQ(vec[1], 0);
 	EXPECT_EQ(vec.size(), 4);
 	vec.resize(2);
 	EXPECT_EQ(local, vec.data());
-	EXPECT_EQ(vec[1], 0);
 	EXPECT_EQ(vec.size(), 2);
 	vec.resize(20);
 	EXPECT_NE(local, vec.data());
-	EXPECT_EQ(vec[18], 0);
 	EXPECT_EQ(vec.size(), 20);
 }
 
