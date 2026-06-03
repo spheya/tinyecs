@@ -3,11 +3,13 @@
 
 #define GLAD_GL_IMPLEMENTATION
 #include <common/graphics.hpp>
-#include <ecs/ecs.hpp>
+#include <tinyecs/tinyecs.hpp>
 
-struct velocity {
-	float x, y;
-};
+namespace {
+	struct velocity {
+		float x, y;
+	};
+} // namespace
 
 static float random_float() {
 	return float(rand()) / float(RAND_MAX);

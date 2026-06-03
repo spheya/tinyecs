@@ -8,13 +8,13 @@
 
 #include "meta.hpp"
 
-namespace ecs {
+namespace tinyecs {
 
 	template<typename T, size_type N>
 	class small_vector {
 	public:
 		using value_type = T;
-		using size_type = ecs::size_type;
+		using size_type = tinyecs::size_type;
 		using iterator = T*;
 		using const_iterator = const T*;
 		constexpr static size_type local_storage_size = N;
@@ -337,4 +337,4 @@ namespace ecs {
 		return !(*this == other);
 	}
 
-} // namespace ecs
+} // namespace tinyecs
