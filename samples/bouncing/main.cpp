@@ -24,7 +24,7 @@ int main() {
 	ecs::world world;
 
 	for(int i = 0; i < 500; ++i) {
-		world.add_entity(
+		world.create_entity(
 		    transform{ .pos_x = random_float(-540.0f, 540.0f), .pos_y = random_float(-360.0f, 360.0f), .size = 12.0f },
 		    velocity{ .x = random_float(-4.0f, 4.0f), .y = random_float(-4.0f, 4.0f) },
 		    renderer{ .r = random_float(), .g = random_float(), .b = random_float(), .a = 1.0f }

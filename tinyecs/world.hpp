@@ -13,9 +13,6 @@
 
 namespace tinyecs {
 
-	template<typename... T>
-	using entity_view = std::tuple<component_reference<T>...>;
-
 	struct entity_record {
 		size_type archetype;
 		size_type row;
@@ -24,27 +21,27 @@ namespace tinyecs {
 	class world {
 	public:
 		template<typename... T>
-		entity add_entity(T&&... components);
+		entity create_entity(T&&... components);
 
 		void remove_entity(entity e);
 
-		template<typename T>
-		[[nodiscard]] bool has_component(entity e) const noexcept;
+		template<typename... T>
+		[[nodiscard]] bool has(entity e) const noexcept;
 
 		template<typename... T>
-		[[nodiscard]] bool has_components(entity e) const noexcept;
-
-		template<typename T>
-		[[nodiscard]] component_reference<T> get_component(entity e);
-
-		template<typename T>
-		[[nodiscard]] component_reference<const T> get_component(entity e) const;
+		[[nodiscard]] bool has_any(entity e) const noexcept;
 
 		template<typename... T>
-		[[nodiscard]] entity_view<T...> get_components(entity e);
+		[[nodiscard]] component_pack_t<component_reference<T>...> get(entity e);
 
 		template<typename... T>
-		[[nodiscard]] entity_view<const T...> get_components(entity e) const;
+		[[nodiscard]] component_pack_t<component_reference<const T>...> get(entity e) const;
+
+		template<typename... T>
+		[[nodiscard]] component_pack_t<T*...> try_get(entity e);
+
+		template<typename... T>
+		[[nodiscard]] component_pack_t<const T*...> try_get(entity e) const;
 
 		template<typename Func>
 		void each(Func&& func);
@@ -76,7 +73,7 @@ namespace tinyecs {
 	} // namespace internal
 
 	template<typename... T>
-	inline entity world::add_entity(T&&... components) {
+	inline entity world::create_entity(T&&... components) {
 		signature sig = create_signature<std::remove_cvref_t<T>...>();
 
 		archetype* archetype;
@@ -107,44 +104,75 @@ namespace tinyecs {
 		entities.erase(e);
 	}
 
-	template<typename T>
-	inline bool world::has_component(entity e) const noexcept {
-		return has_components<T>(e);
-	}
-
 	template<typename... T>
-	inline bool world::has_components(entity e) const noexcept {
+	inline bool world::has(entity e) const noexcept {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
 		return (archetype.column<T>() && ...);
 	}
 
-	template<typename T>
-	inline component_reference<T> world::get_component(entity e) {
-		return std::get<0>(get_components<T>(e));
-	}
-
-	template<typename T>
-	inline component_reference<const T> world::get_component(entity e) const {
-		return std::get<0>(get_components<T>(e));
+	template<typename... T>
+	[[nodiscard]] bool world::has_any(entity e) const noexcept {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
+		entity_record record = entities.at(e);
+		const archetype& archetype = archetypes[record.archetype];
+		return (archetype.column<T>() || ...);
 	}
 
 	template<typename... T>
-	inline entity_view<T...> world::get_components(entity e) {
+	inline component_pack_t<component_reference<T>...> world::get(entity e) {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
+		if constexpr(sizeof...(T) == 1) {
+			return *try_get<T...>(e);
+		} else {
+			component_pack_t<T*...> components = try_get<T...>(e);
+			TINYECS_ASSUME(std::get<T*>(components) && ...); // entity does not contain components
+			return component_pack_t<component_reference<T>...>(*std::get<T*>(components)...);
+		}
+	}
+
+	template<typename... T>
+	inline component_pack_t<component_reference<const T>...> world::get(entity e) const {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
+		if constexpr(sizeof...(T) == 1) {
+			return *try_get<const T...>(e);
+		} else {
+			component_pack_t<const T*...> components = try_get<const T...>(e);
+			TINYECS_ASSUME(std::get<const T*>(components) && ...); // entity does not contain components
+			return component_pack_t<component_reference<const T>...>(*std::get<const T*>(components)...);
+		}
+	}
+
+	template<typename... T>
+	inline component_pack_t<T*...> world::try_get(entity e) {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
 		std::tuple<T*...> columns(archetype.column<T>()...);
-		TINYECS_ASSUME(std::get<T*>(columns) && ...); // entity doesnt contain all components
-		return entity_view<T...>(std::get<T*>(columns)[record.row]...);
+		if constexpr(sizeof...(T) == 1) {
+			return std::get<0>(columns) + record.row;
+		} else {
+			return component_pack_t<T*...>(std::get<T*>(columns) + record.row...);
+		}
 	}
 
 	template<typename... T>
-	inline entity_view<const T...> world::get_components(entity e) const {
+	inline component_pack_t<const T*...> world::try_get(entity e) const {
+		static_assert(sizeof...(T) != 0, "Needs at least one component");
+		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		std::tuple<const T*...> columns(archetype.column<const T>()...);
-		TINYECS_ASSUME(std::get<const T*>(columns) && ...); // entity doesnt contain all components
-		return entity_view<const T...>(std::get<const T*>(columns)[record.row]...);
+		std::tuple<T*...> columns(archetype.column<T>()...);
+		if constexpr(sizeof...(T) == 1) {
+			return std::get<0>(columns) + record.row;
+		} else {
+			return component_pack_t<const T*...>(std::get<const T*>(columns) + record.row...);
+		}
 	}
 
 	template<typename Func>

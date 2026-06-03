@@ -45,6 +45,9 @@ namespace tinyecs {
 		entity remove_entity(size_type row);
 
 		template<typename T>
+		[[nodiscard]] bool contains() const noexcept;
+
+		template<typename T>
 		[[nodiscard]] T* column() noexcept;
 
 		template<typename T>
@@ -199,6 +202,17 @@ namespace tinyecs {
 		if(row == m_size) return null_entity;
 		m_entities[row] = m_entities[m_size];
 		return m_entities[row];
+	}
+
+	template<typename T>
+	[[nodiscard]] bool archetype::contains() const noexcept {
+		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
+			return true;
+		} else {
+			const component_id* it =
+			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
+			return it != m_signature.components.end();
+		}
 	}
 
 	template<typename T>
