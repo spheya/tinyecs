@@ -6,7 +6,7 @@
 #include "world.hpp"     // IWYU pragma: export
 
 #ifndef TINYECS_NO_SMALL_NAMESPACE
-namespace tinyecs {
+namespace ecs {
 	using namespace tinyecs;
 }
 #endif
