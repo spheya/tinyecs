@@ -301,7 +301,7 @@ namespace tinyecs {
 		} else {
 			const component_id* it =
 			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			return it == m_signature.components.end();
+			return it != m_signature.components.end();
 		}
 	}
 
