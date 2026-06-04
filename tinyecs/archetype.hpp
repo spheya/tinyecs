@@ -268,6 +268,42 @@ namespace tinyecs {
 		return m_entities[row];
 	}
 
+	template<typename... T>
+	entity archetype::move_entity(size_type& row, archetype& destination, T&&... components) {
+		TINYECS_ASSUME(row < m_size);
+		TINYECS_ASSUME(
+		    extend_signature<std::remove_cvref_t<T>...>(m_signature) == destination.get_signature()
+		); // archetype does not contain these components
+		--m_size;
+		if(destination.m_size == destination.m_capacity) reserve(destination.m_capacity * 2);
+
+		// move components over
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+			char* dst = static_cast<char*>(destination.column(m_signature.components[i])) + destination.m_size * ops.component_size;
+
+			if(ops.is_trivially_copyable()) {
+				// move
+				memcpy(dst, column + row * ops.component_size, ops.component_size);
+				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
+			} else {
+				// move
+				ops.relocate(dst, column + row * ops.component_size);
+				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
+			}
+		}
+
+		// add new components
+		(std::construct_at(destination.column<std::remove_cvref_t<T>>() + destination.m_size, std::forward<T>(components)), ...);
+		destination.m_entities[m_size] = m_entities[row];
+
+		if(row == m_size) return null_entity;
+		m_entities[row] = m_entities[m_size];
+		row = destination.m_size++;
+		return m_entities[m_size];
+	}
+
 	template<typename T>
 	[[nodiscard]] bool archetype::contains() const noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
