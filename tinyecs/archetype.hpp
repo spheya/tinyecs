@@ -8,8 +8,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <vcruntime_typeinfo.h>
-
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"

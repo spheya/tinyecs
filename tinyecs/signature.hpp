@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <cstring>
 #include <functional>
+#include <ranges>
 #include <type_traits>
+#include <utility>
 
 #include "meta.hpp"
 #include "small_vector.hpp"
+
 
 namespace tinyecs {
 
