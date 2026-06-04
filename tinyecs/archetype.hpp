@@ -305,6 +305,16 @@ namespace tinyecs {
 		}
 	}
 
+	template<typename T>
+	inline T* archetype::find_column() noexcept {
+		return static_cast<T*>(find_column(type_id<std::remove_const_t<T>>()));
+	}
+
+	template<typename T>
+	inline const T* archetype::find_column() const noexcept {
+		return static_cast<const T*>(find_column(type_id<std::remove_const_t<T>>()));
+	}
+
 	inline void* archetype::find_column(type_index type_idx) noexcept {
 		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
 		if(it == m_signature.components.end()) return nullptr;
@@ -318,27 +328,13 @@ namespace tinyecs {
 	}
 
 	template<typename T>
-	inline T* archetype::find_column() noexcept {
-		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-		if(it == m_signature.components.end()) return nullptr;
-		return reinterpret_cast<T*>(m_columns[size_type(it - m_signature.components.begin())]);
-	}
-
-	template<typename T>
-	inline const T* archetype::find_column() const noexcept {
-		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-		if(it == m_signature.components.end()) return nullptr;
-		return reinterpret_cast<const T*>(m_columns[size_type(it - m_signature.components.begin())]);
-	}
-
-	template<typename T>
 	inline T* archetype::column() noexcept {
-		return static_cast<T*>(column(type_id<T>()));
+		return static_cast<T*>(column(type_id<std::remove_const_t<T>>()));
 	}
 
 	template<typename T>
 	inline const T* archetype::column() const noexcept {
-		return static_cast<const T*>(column(type_id<T>()));
+		return static_cast<const T*>(column(type_id<std::remove_const_t<T>>()));
 	}
 
 	inline void* archetype::column(type_index type_idx) noexcept {

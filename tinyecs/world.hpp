@@ -128,7 +128,7 @@ namespace tinyecs {
 		}
 
 		entity e = nextEntity++;
-		size_type row = archetype->add_entity<std::remove_cvref_t<T>...>(e, std::forward<T>(components)...);
+		size_type row = archetype->add_entity(e, std::forward<T>(components)...);
 		entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;
 	}
@@ -143,7 +143,7 @@ namespace tinyecs {
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
 		entity_record& record = entities.at(e);
-		
+
 		signature signature = extend_signature<std::remove_cvref_t<T>...>(archetypes[record.archetype].get_signature());
 
 		archetype* dst_archetype;
@@ -160,7 +160,6 @@ namespace tinyecs {
 			dst_archetype = &archetypes[dst_archetype_index];
 		}
 
-		
 		size_type row = record.row;
 		entity replacement = archetypes[record.archetype].move_entity(record.row, *dst_archetype, std::forward<T>(components)...);
 		record.archetype = dst_archetype_index;

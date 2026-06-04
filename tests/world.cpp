@@ -1,126 +1,234 @@
+#include <concepts>
+#include <memory>
+#include <type_traits>
+#include <unordered_set>
+#include <vector>
+
 #include <gtest/gtest.h>
 #include <tinyecs/world.hpp>
 
+#include "tinyecs/meta.hpp"
+
 namespace {
-	struct Position {
-		float x, y;
+	template<size_t N>
+	struct component {
+		int a, b, c;
+		auto operator<=>(const component<N>&) const noexcept = default;
 	};
 
-	struct Velocity {
-		float x, y;
+	struct unique_component {
+		std::unique_ptr<int> ptr;
+		bool operator==(const unique_component& other) const { return *ptr == *other.ptr; }
+		bool operator!=(const unique_component& other) const { return *ptr != *other.ptr; }
 	};
 
-	struct Tag {};
+	struct tag {};
+
+	template<typename T>
+	struct component_generator;
+
+	template<size_t N>
+	struct component_generator<component<N>> {
+		component<N> operator()(tinyecs::entity entity) {
+			srand(entity + unsigned(N) * 2654418637u);
+			return { .a = rand(), .b = rand(), .c = rand() };
+		}
+	};
+
+	template<>
+	struct component_generator<unique_component> {
+		unique_component operator()(tinyecs::entity entity) {
+			srand(entity);
+			return { .ptr = std::make_unique<int>(rand()) };
+		}
+	};
+
+	template<>
+	struct component_generator<tag> {
+		tag operator()(tinyecs::entity /* entity */) { return {}; }
+	};
 } // namespace
 
-TEST(world, single_entity) {
-	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-
-	EXPECT_TRUE(world.has<Position>(entity));
-	EXPECT_TRUE(world.has<Velocity>(entity));
-	EXPECT_FALSE(world.has<Tag>(entity));
-
-	auto&& [pos, vel] = world.get<Position, Velocity>(entity);
-	EXPECT_EQ(pos.x, 1.0f);
-	EXPECT_EQ(pos.y, 2.0f);
-	EXPECT_EQ(vel.x, 3.0f);
-	EXPECT_EQ(vel.y, 4.0f);
+template<typename... Components>
+static std::vector<tinyecs::entity> add_entities(tinyecs::world& world, size_t count) {
+	std::vector<tinyecs::entity> results;
+	for(size_t i = 0; i < count; ++i) {
+		tinyecs::entity entity = world.create_entity(component_generator<Components>{}(tinyecs::null_entity)...);
+		((world.get<Components>(entity) = component_generator<Components>{}(entity)), ...);
+		results.push_back(entity);
+	}
+	return results;
 }
 
-TEST(world, empty_entity) {
+template<typename T>
+static void single_component_test() {
 	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity();
-	EXPECT_FALSE(world.has<Position>(entity));
+	tinyecs::entity entity = world.create_entity(component_generator<T>{}(0));
+	EXPECT_TRUE(world.has<T>(entity));
+	if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(entity), component_generator<T>{}(0));
 }
 
-TEST(world, modify_components) {
+template<typename T>
+static void multi_component_test() {
 	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	world.get<Position>(entity).x = 67.0f;
-	EXPECT_EQ(world.get<Position>(entity).x, 67.0f);
+	tinyecs::entity entity = world.create_entity(component_generator<T>{}(0), component_generator<component<1>>{}(0));
+	EXPECT_TRUE((world.has<T, component<1>>(entity)));
+	if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(entity), component_generator<T>{}(0));
+	EXPECT_EQ(world.get<component<1>>(entity), component_generator<component<1>>{}(0));
 }
 
-TEST(world, const_components) {
+template<typename T>
+static void multi_entity_test() {
 	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	EXPECT_EQ(world.get<const Position>(entity).x, 1.0f);
+	std::vector<tinyecs::entity> entities = add_entities<T, component<1>>(world, 1000);
+
+	for(tinyecs::entity e : entities) {
+		EXPECT_TRUE((world.has<T, component<1>>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+		EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+	}
 }
 
-TEST(world, const_world) {
+template<typename T>
+static void const_component_test() {
 	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
+	std::vector<tinyecs::entity> entities = add_entities<T, component<1>>(world, 1000);
+
+	for(tinyecs::entity e : entities) {
+		EXPECT_TRUE((world.has<const T, const component<1>>(e)));
+		EXPECT_EQ(world.get<const component<1>>(e), component_generator<component<1>>{}(e));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<const T>(e), component_generator<T>{}(e));
+	}
+}
+
+template<typename T>
+static void const_world_test() {
+	tinyecs::world world;
+	std::vector<tinyecs::entity> entities = add_entities<T>(world, 1000);
+
 	const tinyecs::world& w = world;
-	EXPECT_EQ(w.get<Position>(entity).x, 1.0f);
+
+	for(tinyecs::entity e : entities) {
+		EXPECT_TRUE((w.has<T>(e)));
+		EXPECT_TRUE((w.has<const T>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(w.get<T>(e), component_generator<T>{}(e));
+	}
 }
 
-TEST(world, multiple_entities) {
+template<typename T>
+static void multi_archetype_test() {
 	tinyecs::world world;
-	tinyecs::entity entity1 = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	tinyecs::entity entity2 = world.create_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
+	std::vector<tinyecs::entity> e1 = add_entities<T>(world, 250);
+	std::vector<tinyecs::entity> e2 = add_entities<T, component<1>>(world, 250);
+	std::vector<tinyecs::entity> e3 = add_entities<T>(world, 250);
+	std::vector<tinyecs::entity> e4 = add_entities<T, component<1>>(world, 250);
 
-	EXPECT_TRUE(world.has<Position>(entity1));
-	EXPECT_TRUE(world.has<Velocity>(entity1));
-	EXPECT_FALSE(world.has<Tag>(entity1));
-	EXPECT_TRUE(world.has<Position>(entity2));
-	EXPECT_TRUE(world.has<Velocity>(entity2));
-	EXPECT_FALSE(world.has<Tag>(entity2));
+	for(tinyecs::entity e : e1) {
+		EXPECT_TRUE((world.has<T>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+	}
 
-	auto&& [pos1, vel1] = world.get<Position, Velocity>(entity1);
-	EXPECT_EQ(pos1.x, 1.0f);
-	EXPECT_EQ(pos1.y, 2.0f);
-	EXPECT_EQ(vel1.x, 3.0f);
-	EXPECT_EQ(vel1.y, 4.0f);
+	for(tinyecs::entity e : e2) {
+		EXPECT_TRUE((world.has<T, component<1>>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+		EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+	}
 
-	auto&& [pos2, vel2] = world.get<Position, Velocity>(entity2);
-	EXPECT_EQ(pos2.x, 5.0f);
-	EXPECT_EQ(pos2.y, 6.0f);
-	EXPECT_EQ(vel2.x, 7.0f);
-	EXPECT_EQ(vel2.y, 8.0f);
+	for(tinyecs::entity e : e3) {
+		EXPECT_TRUE((world.has<T>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+	}
+
+	for(tinyecs::entity e : e4) {
+		EXPECT_TRUE((world.has<T, component<1>>(e)));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+		EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+	}
 }
 
-TEST(world, multiple_archetypes) {
+template<typename T>
+static void add_components_after_creation_test() {
 	tinyecs::world world;
-	tinyecs::entity entity1 = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	tinyecs::entity entity2 = world.create_entity(Position{ .x = 5.0f, .y = 6.0f });
+	std::vector<tinyecs::entity> entities = add_entities(world, 1000);
+	for(tinyecs::entity e : entities) {
+		world.add(e, component_generator<T>{}(e));
+		if(e % 2 == 0) {
+			world.add(e, component_generator<component<1>>{}(e));
+		} else {
+			world.add(e, component_generator<component<2>>{}(e));
+		}
+	}
 
-	EXPECT_TRUE(world.has<Position>(entity1));
-	EXPECT_TRUE(world.has<Velocity>(entity1));
-	EXPECT_FALSE(world.has<Tag>(entity1));
-	EXPECT_TRUE(world.has<Position>(entity2));
-	EXPECT_FALSE(world.has<Velocity>(entity2));
-	EXPECT_FALSE(world.has<Tag>(entity2));
-
-	auto&& [pos1, vel1] = world.get<Position, Velocity>(entity1);
-	EXPECT_EQ(pos1.x, 1.0f);
-	EXPECT_EQ(pos1.y, 2.0f);
-	EXPECT_EQ(vel1.x, 3.0f);
-	EXPECT_EQ(vel1.y, 4.0f);
-
-	auto& pos2 = world.get<Position>(entity2);
-	EXPECT_EQ(pos2.x, 5.0f);
-	EXPECT_EQ(pos2.y, 6.0f);
+	for(tinyecs::entity e : entities) {
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e));
+		if(e % 2 == 0) {
+			EXPECT_TRUE((world.has<T, component<1>>(e)));
+			EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+		} else {
+			EXPECT_TRUE((world.has<T, component<2>>(e)));
+			EXPECT_EQ(world.get<component<2>>(e), component_generator<component<2>>{}(e));
+		}
+	}
 }
 
-TEST(world, empty_components) {
+template<typename T>
+static void simple_each_test() {
 	tinyecs::world world;
-	tinyecs::entity entity = world.create_entity(Tag{});
-	EXPECT_TRUE(world.has<Tag>(entity));
+	std::vector<tinyecs::entity> e1 = add_entities<T>(world, 500);
+	add_entities<component<1>>(world, 500);
+	std::vector<tinyecs::entity> e2 = add_entities<T, component<1>>(world, 500);
+	add_entities<component<1>, component<2>>(world, 500);
+
+	std::unordered_set<tinyecs::entity> entities(e1.begin(), e1.end());
+	entities.insert(e2.begin(), e2.end());
+
+	size_t counter = 0;
+	world.each([&](tinyecs::entity entity, const T& /* component */) {
+		++counter;
+		ASSERT_TRUE(entities.contains(entity));
+	});
+	ASSERT_EQ(counter, 1000);
 }
 
-TEST(world, entity_removal) {
-	tinyecs::world world;
-	tinyecs::entity remove = world.create_entity(Position{ .x = 5.0f, .y = 6.0f }, Velocity{ .x = 7.0f, .y = 8.0f });
-	tinyecs::entity entity = world.create_entity(Position{ .x = 1.0f, .y = 2.0f }, Velocity{ .x = 3.0f, .y = 4.0f });
-	world.remove_entity(remove);
-
-	EXPECT_TRUE(world.has<Position>(entity));
-	EXPECT_TRUE(world.has<Velocity>(entity));
-	EXPECT_FALSE(world.has<Tag>(entity));
-
-	auto&& [pos, vel] = world.get<Position, Velocity>(entity);
-	EXPECT_EQ(pos.x, 1.0f);
-	EXPECT_EQ(pos.y, 2.0f);
-	EXPECT_EQ(vel.x, 3.0f);
-	EXPECT_EQ(vel.y, 4.0f);
+template<typename T>
+static void entity_removal_test() {
+	if constexpr(std::equality_comparable<T>) {
+		tinyecs::world world;
+		std::vector<tinyecs::entity> entities = add_entities<T>(world, 100);
+		for(size_t i = 0; i < entities.size(); i += 2) world.remove_entity(entities[i]);
+		for(size_t i = 1; i < entities.size(); i += 2) ASSERT_EQ(world.get<T>(entities[i]), component_generator<T>{}(entities[i]));
+	}
 }
+
+#define SMOKE_TESTS(name, type)                         \
+	TEST(world, name##_single_component) {              \
+		single_component_test<type>();                  \
+	}                                                   \
+	TEST(world, name##_multi_component) {               \
+		multi_component_test<type>();                   \
+	}                                                   \
+	TEST(world, name##_multi_entity) {                  \
+		multi_entity_test<type>();                      \
+	}                                                   \
+	TEST(world, name##_const_component) {               \
+		const_component_test<type>();                   \
+	}                                                   \
+	TEST(world, name##_const_world) {                   \
+		const_world_test<type>();                       \
+	}                                                   \
+	TEST(world, name##_multi_archetype) {               \
+		multi_archetype_test<type>();                   \
+	}                                                   \
+	TEST(world, name##_add_components_after_creation) { \
+		add_components_after_creation_test<type>();     \
+	}                                                   \
+	TEST(world, name##_simple_each) {                   \
+		simple_each_test<type>();                       \
+	}                                                   \
+	TEST(world, name##_entity_removal) {                \
+		entity_removal_test<type>();                    \
+	}
+
+SMOKE_TESTS(basic, component<0>);
+SMOKE_TESTS(non_movable, unique_component);
+SMOKE_TESTS(tag, tag);
