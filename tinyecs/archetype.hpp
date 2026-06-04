@@ -8,9 +8,13 @@
 #include <type_traits>
 #include <utility>
 
+#include <vcruntime_typeinfo.h>
+
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
+
+// todo: have a version of column() that wont return nullptr, and use that everywhere instead of std::ranges::find
 
 namespace tinyecs {
 
@@ -38,7 +42,7 @@ namespace tinyecs {
 		void init();
 
 		template<typename... T>
-		archetype extend();
+		archetype extend(signature signature);
 
 		// returns the row that the entity lives on
 		template<typename... T>
@@ -47,16 +51,35 @@ namespace tinyecs {
 		// returns the entity that is now stored on the row, or null_entity if the row is no longer used
 		entity remove_entity(size_type row);
 
+		// acts as if you did remove_entity on this archetype, and then add_entity with the components the entity held + `components`.
+		// returns the entity that is now stored on the row, or null_entity if the row is no longer used.
+		// replaces row with the row the entity is moved to in the destination archetype.
+		template<typename... T>
+		entity move_entity(size_type& row, archetype& destination, T&&... components);
+
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
+		template<typename T>
+		[[nodiscard]] bool has_column() const noexcept;
+
+		template<typename T>
+		[[nodiscard]] T* find_column() noexcept;
+		template<typename T>
+		[[nodiscard]] const T* find_column() const noexcept;
+		[[nodiscard]] void* find_column(type_index type_idx) noexcept;
+		[[nodiscard]] const void* find_column(type_index type_idx) const noexcept;
 
 		template<typename T>
 		[[nodiscard]] T* column() noexcept;
-
 		template<typename T>
 		[[nodiscard]] const T* column() const noexcept;
+		[[nodiscard]] void* column(type_index type_idx) noexcept;
+		[[nodiscard]] const void* column(type_index type_idx) const noexcept;
 
+		[[nodiscard]] entity* entities() noexcept;
+		[[nodiscard]] const entity* entities() const noexcept;
 		[[nodiscard]] size_type size() const noexcept;
+		[[nodiscard]] const signature& get_signature() const noexcept;
 
 		void reserve(size_type capacity);
 
@@ -178,10 +201,11 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	archetype archetype::extend() {
+	archetype archetype::extend(signature signature) {
 		// todo: avoid duplicate logic between extend() and init()
 		static_assert(sizeof...(T) != 0);
-		archetype result(extend_signature<T...>(m_signature));
+		TINYECS_ASSUME(extend_signature<T...>(m_signature) == signature);
+		archetype result(std::move(signature));
 		result.m_columns.resize(result.m_signature.components.size());
 		result.m_component_ops.resize(result.m_signature.components.size());
 		result.m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
@@ -256,31 +280,78 @@ namespace tinyecs {
 	}
 
 	template<typename T>
-	inline T* archetype::column() noexcept {
+	[[nodiscard]] bool archetype::has_column() const noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return m_entities;
+			return true;
 		} else {
 			const component_id* it =
 			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<T*>(m_columns[size_type(it - m_signature.components.begin())]);
+			return it == m_signature.components.end();
 		}
+	}
+
+	inline void* archetype::find_column(type_index type_idx) noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		if(it == m_signature.components.end()) return nullptr;
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline const void* archetype::find_column(type_index type_idx) const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		if(it == m_signature.components.end()) return nullptr;
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	template<typename T>
+	inline T* archetype::find_column() noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
+		if(it == m_signature.components.end()) return nullptr;
+		return reinterpret_cast<T*>(m_columns[size_type(it - m_signature.components.begin())]);
+	}
+
+	template<typename T>
+	inline const T* archetype::find_column() const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
+		if(it == m_signature.components.end()) return nullptr;
+		return reinterpret_cast<const T*>(m_columns[size_type(it - m_signature.components.begin())]);
+	}
+
+	template<typename T>
+	inline T* archetype::column() noexcept {
+		return static_cast<T*>(column(type_id<T>()));
 	}
 
 	template<typename T>
 	inline const T* archetype::column() const noexcept {
-		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return m_entities;
-		} else {
-			const component_id* it =
-			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<const T*>(m_columns[size_type(it - m_signature.components.begin())]);
-		}
+		return static_cast<const T*>(column(type_id<T>()));
+	}
+
+	inline void* archetype::column(type_index type_idx) noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline const void* archetype::column(type_index type_idx) const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline entity* archetype::entities() noexcept {
+		return m_entities;
+	}
+
+	inline const entity* archetype::entities() const noexcept {
+		return m_entities;
 	}
 
 	inline size_type archetype::size() const noexcept {
 		return m_size;
+	}
+
+	inline const signature& archetype::get_signature() const noexcept {
+		return m_signature;
 	}
 
 	inline void archetype::reserve(size_type capacity) {

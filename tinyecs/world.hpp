@@ -26,6 +26,9 @@ namespace tinyecs {
 		void remove_entity(entity e);
 
 		template<typename... T>
+		void add(entity e, T&&... components);
+
+		template<typename... T>
 		[[nodiscard]] bool has(entity e) const noexcept;
 
 		template<typename... T>
@@ -56,34 +59,67 @@ namespace tinyecs {
 		std::vector<archetype> archetypes;
 	};
 
+	// todo: clean this up
 	namespace internal {
+		template<typename T>
+		T* archetype_column_ptr(type_index type_idx, archetype& archetype, bool& success) {
+			TINYECS_ASSUME(type_id<T>() == type_idx);
+			if constexpr(std::is_same_v<T, entity>) {
+				return archetype.entities();
+			} else {
+				T* column = static_cast<T*>(archetype.find_column(type_idx));
+				if(column == nullptr) success = false;
+				return column;
+			}
+		}
+
+		template<typename T>
+		const T* archetype_column_ptr(type_index type_idx, const archetype& archetype, bool& success) {
+			TINYECS_ASSUME(type_id<T>() == type_idx);
+			if constexpr(std::is_same_v<T, entity>) {
+				return archetype.entities();
+			} else {
+				const T* column = static_cast<const T*>(archetype.find_column(type_idx));
+				if(column == nullptr) success = false;
+				return column;
+			}
+		}
+
+		template<typename... T, size_t... I, typename Archetype>
+		auto get_base(type_index* indices, Archetype& archetype, bool& success, std::index_sequence<I...> /* seq */) {
+			return std::make_tuple(archetype_column_ptr<T>(indices[I], archetype, success)...);
+		}
+
 		template<typename Archetypes, typename Func, typename... Args>
 		inline void
 		each_impl(Archetypes& archetypes, Func&& func, function_args<Args...> /* args */) { // NOLINT(cppcoreguidelines-missing-std-forward)
 			static_assert(is_unique_v<std::remove_cvref_t<Args>...>, "Components must be unique");
 			static_assert(!(std::is_same_v<std::remove_volatile_t<Args>, tinyecs::entity&> || ...), "Cannot get a mutable reference to entity");
 
+			type_index indices[] = { type_id<std::remove_cvref_t<Args>>()... };
+
 			for(auto& archetype : archetypes) {
-				auto base = std::make_tuple(archetype.template column<std::remove_cvref_t<Args>>()...);
-				if(((std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base) == nullptr) || ...)) continue;
+				bool success = true;
+				auto base = get_base<std::remove_cvref_t<Args>...>(indices, archetype, success, std::index_sequence_for<Args...>());
+				if(!success) continue;
 				size_type size = archetype.size();
-				for(size_type i = 0; i < size; ++i) func(std::get<decltype(archetype.template column<std::remove_cvref_t<Args>>())>(base)[i]...);
+				for(size_type i = 0; i < size; ++i) func(std::get<decltype(archetype.template find_column<std::remove_cvref_t<Args>>())>(base)[i]...);
 			}
 		}
 	} // namespace internal
 
 	template<typename... T>
 	inline entity world::create_entity(T&&... components) {
-		signature sig = create_signature<std::remove_cvref_t<T>...>();
+		signature signature = create_signature<std::remove_cvref_t<T>...>();
 
 		archetype* archetype;
 		size_type archetype_index;
 
-		auto it = archetype_lut.find(sig);
+		auto it = archetype_lut.find(signature);
 		if(it == archetype_lut.end()) {
 			archetype_index = archetypes.size();
-			archetype_lut.emplace(sig, archetype_index);
-			archetypes.emplace_back(std::move(sig));
+			archetype_lut.emplace(signature, archetype_index);
+			archetypes.emplace_back(std::move(signature));
 			archetype = &archetypes.back();
 			archetype->init<std::remove_cvref_t<T>...>();
 		} else {
@@ -109,7 +145,7 @@ namespace tinyecs {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		return (archetype.column<T>() && ...);
+		return (archetype.has_column<T>() && ...);
 	}
 
 	template<typename... T>
@@ -118,7 +154,7 @@ namespace tinyecs {
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		return (archetype.column<T>() || ...);
+		return (archetype.has_column<T>() || ...);
 	}
 
 	template<typename... T>
@@ -129,7 +165,7 @@ namespace tinyecs {
 			return *try_get<T...>(e);
 		} else {
 			component_pack_t<T*...> components = try_get<T...>(e);
-			TINYECS_ASSUME(std::get<T*>(components) && ...); // entity does not contain components
+			// TINYECS_ASSUME(std::get<T*>(components) && ...); // entity does not contain components
 			return component_pack_t<component_reference<T>...>(*std::get<T*>(components)...);
 		}
 	}
@@ -142,7 +178,7 @@ namespace tinyecs {
 			return *try_get<const T...>(e);
 		} else {
 			component_pack_t<const T*...> components = try_get<const T...>(e);
-			TINYECS_ASSUME(std::get<const T*>(components) && ...); // entity does not contain components
+			// TINYECS_ASSUME(std::get<const T*>(components) && ...); // entity does not contain components
 			return component_pack_t<component_reference<const T>...>(*std::get<const T*>(components)...);
 		}
 	}
@@ -153,7 +189,7 @@ namespace tinyecs {
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		archetype& archetype = archetypes[record.archetype];
-		std::tuple<T*...> columns(archetype.column<T>()...);
+		std::tuple<T*...> columns(archetype.find_column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns) + record.row;
 		} else {
@@ -167,7 +203,7 @@ namespace tinyecs {
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = entities.at(e);
 		const archetype& archetype = archetypes[record.archetype];
-		std::tuple<T*...> columns(archetype.column<T>()...);
+		std::tuple<T*...> columns(archetype.find_column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns) + record.row;
 		} else {
