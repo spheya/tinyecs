@@ -84,6 +84,8 @@ namespace tinyecs {
 		void reserve(size_type capacity);
 
 	private:
+		entity fill_hole(size_type row);
+
 		constexpr static size_t initial_capacity = 8;
 
 		signature m_signature;
@@ -249,59 +251,36 @@ namespace tinyecs {
 
 	inline entity archetype::remove_entity(size_type row) {
 		TINYECS_ASSUME(row < m_size);
-		--m_size;
 
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* column = static_cast<char*>(m_columns[i]);
-
-			if(ops.is_trivially_copyable()) {
-				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
-			} else {
-				if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
-				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
-			}
+			if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
 		}
 
-		if(row == m_size) return null_entity;
-		m_entities[row] = m_entities[m_size];
-		return m_entities[row];
+		return fill_hole(row);
 	}
 
 	template<typename... T>
 	entity archetype::move_entity(size_type& row, archetype& destination, T&&... components) {
 		TINYECS_ASSUME(row < m_size);
-		TINYECS_ASSUME(
-		    extend_signature<std::remove_cvref_t<T>...>(m_signature) == destination.get_signature()
-		); // archetype does not contain these components
-		--m_size;
-		if(destination.m_size == destination.m_capacity) reserve(destination.m_capacity * 2);
+		TINYECS_ASSUME(extend_signature<std::remove_cvref_t<T>...>(m_signature) == destination.m_signature);
+		size_type from_row = row;
+		row = destination.add_entity(m_entities[from_row], std::forward<T>(components)...);
 
-		// move components over
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* column = static_cast<char*>(m_columns[i]);
-			char* dst = static_cast<char*>(destination.column(m_signature.components[i])) + destination.m_size * ops.component_size;
+			char* dst = static_cast<char*>(destination.column(m_signature.components[i]));
 
 			if(ops.is_trivially_copyable()) {
-				// move
-				memcpy(dst, column + row * ops.component_size, ops.component_size);
-				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
+				memcpy(dst, column + from_row * ops.component_size, ops.component_size);
 			} else {
-				// move
-				ops.relocate(dst, column + row * ops.component_size);
-				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
+				ops.relocate(dst, column + from_row * ops.component_size);
 			}
 		}
 
-		// add new components
-		(std::construct_at(destination.column<std::remove_cvref_t<T>>() + destination.m_size, std::forward<T>(components)), ...);
-		destination.m_entities[m_size] = m_entities[row];
-
-		if(row == m_size) return null_entity;
-		m_entities[row] = m_entities[m_size];
-		row = destination.m_size++;
-		return m_entities[m_size];
+		return fill_hole(from_row);
 	}
 
 	template<typename T>
@@ -415,6 +394,26 @@ namespace tinyecs {
 		}
 
 		m_capacity = capacity;
+	}
+
+	inline entity archetype::fill_hole(size_type row) {
+		TINYECS_ASSUME(row < m_size);
+		--m_size;
+		if(row == m_size) return null_entity;
+
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+
+			if(ops.is_trivially_copyable()) {
+				memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
+			} else {
+				ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
+			}
+		}
+
+		m_entities[row] = m_entities[m_size];
+		return m_entities[m_size];
 	}
 
 } // namespace tinyecs

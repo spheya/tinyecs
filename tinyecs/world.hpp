@@ -141,6 +141,33 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
+	void world::add(entity e, T&&... components) {
+		entity_record& record = entities.at(e);
+		
+		signature signature = extend_signature<std::remove_cvref_t<T>...>(archetypes[record.archetype].get_signature());
+
+		archetype* dst_archetype;
+		size_type dst_archetype_index;
+
+		auto it = archetype_lut.find(signature);
+		if(it == archetype_lut.end()) {
+			dst_archetype_index = archetypes.size();
+			archetype_lut.emplace(signature, dst_archetype_index);
+			archetypes.emplace_back(archetypes[record.archetype].extend<std::remove_cvref_t<T>...>(std::move(signature)));
+			dst_archetype = &archetypes.back();
+		} else {
+			dst_archetype_index = it->second;
+			dst_archetype = &archetypes[dst_archetype_index];
+		}
+
+		
+		size_type row = record.row;
+		entity replacement = archetypes[record.archetype].move_entity(record.row, *dst_archetype, std::forward<T>(components)...);
+		record.archetype = dst_archetype_index;
+		if(replacement) entities.at(replacement).row = row;
+	}
+
+	template<typename... T>
 	inline bool world::has(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		entity_record record = entities.at(e);
