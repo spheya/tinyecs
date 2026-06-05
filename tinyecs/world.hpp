@@ -11,6 +11,7 @@
 #include "archetype.hpp" // IWYU pragma: export
 #include "meta.hpp"      // IWYU pragma: export
 #include "signature.hpp" // IWYU pragma: export
+#include "tinyecs/meta.hpp"
 
 namespace tinyecs {
 
@@ -121,6 +122,7 @@ namespace tinyecs {
 
 		entity e = m_nextEntity++;
 		size_type row = archetype->add_entity(e, std::forward<T>(components)...);
+		archetype->init_entity(std::forward<T>(components)...);
 		m_entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;
 	}
@@ -135,12 +137,16 @@ namespace tinyecs {
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
 		entity_record& record = m_entities.at(e);
-		auto&& [archetype, archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
+		auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
+		archetype& src_archetype = m_archetypes[record.archetype];
 
-		size_type new_row = archetype->add_entity(e, std::forward<T>(components)...);
-		entity replacement = m_archetypes[record.archetype].move_entity(new_row, record.row, *archetype);
+		TINYECS_ASSUME(!src_archetype.contains<std::_Remove_cvref_t<T>>() && ...); // cannot contain duplicate components
+
+		size_type new_row = dst_archetype->add_entity(e);
+		dst_archetype->init_entity(std::forward<T>(components)...);
+		entity replacement = src_archetype.move_entity(new_row, record.row, *dst_archetype);
 		if(replacement) m_entities.at(replacement).row = record.row;
-		record.archetype = archetype_index;
+		record.archetype = dst_archetype_index;
 		record.row = new_row;
 	}
 
@@ -149,7 +155,7 @@ namespace tinyecs {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		entity_record record = m_entities.at(e);
 		const archetype& archetype = m_archetypes[record.archetype];
-		return (archetype.has_column<T>() && ...);
+		return (archetype.contains<T>() && ...);
 	}
 
 	template<typename... T>
@@ -158,7 +164,7 @@ namespace tinyecs {
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = m_entities.at(e);
 		const archetype& archetype = m_archetypes[record.archetype];
-		return (archetype.has_column<T>() || ...);
+		return (archetype.contains<T>() || ...);
 	}
 
 	template<typename... T>
@@ -228,7 +234,7 @@ namespace tinyecs {
 	template<typename... T>
 	std::pair<archetype*, size_type> world::get_or_create_archetype() {
 		signature signature = create_signature<T...>();
-		
+
 		archetype* archetype;
 		size_type archetype_index;
 

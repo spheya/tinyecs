@@ -13,7 +13,6 @@
 #include "signature.hpp"
 #include "small_vector.hpp"
 
-
 // todo: have a version of column() that wont return nullptr, and use that everywhere instead of std::ranges::find
 
 namespace tinyecs {
@@ -42,11 +41,10 @@ namespace tinyecs {
 		void init();
 
 		template<typename... T>
-		archetype extend(signature signature) const;
+		[[nodiscard]] archetype extend(signature signature) const;
 
 		// returns the row that the entity lives on
-		template<typename... T>
-		size_type add_entity(entity entity, T&&... components);
+		size_type add_entity(entity entity);
 
 		// returns the entity that is now stored on the row, or null_entity if the row is no longer used
 		entity remove_entity(size_type row);
@@ -55,10 +53,11 @@ namespace tinyecs {
 		// returns the entity that is now stored on the row, or null_entity if the row is no longer used.
 		entity move_entity(size_type dst_row, size_type src_row, archetype& destination);
 
+		template<typename... T>
+		void init_entity(T&&... components);
+
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
-		template<typename T>
-		[[nodiscard]] bool has_column() const noexcept;
 
 		template<typename T>
 		[[nodiscard]] T* find_column() noexcept;
@@ -238,12 +237,9 @@ namespace tinyecs {
 		return result;
 	}
 
-	template<typename... T>
-	inline size_type archetype::add_entity(entity entity, T&&... components) {
+	inline size_type archetype::add_entity(entity entity) {
 		if(m_size == m_capacity) reserve(m_capacity * 2);
-		TINYECS_ASSUME(column<std::remove_cvref_t<T>>() && ...); // archetype does not contain these components
 		m_entities[m_size] = entity;
-		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
 		return m_size++;
 	}
 
@@ -262,7 +258,7 @@ namespace tinyecs {
 	inline entity archetype::move_entity(size_type dst_row, size_type src_row, archetype& destination) {
 		TINYECS_ASSUME(src_row < m_size);
 		TINYECS_ASSUME(dst_row < destination.m_size);
-		
+
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* src_column = static_cast<char*>(m_columns[i]);
@@ -278,19 +274,14 @@ namespace tinyecs {
 		return fill_hole(src_row);
 	}
 
-	template<typename T>
-	[[nodiscard]] bool archetype::contains() const noexcept {
-		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return true;
-		} else {
-			const component_id* it =
-			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			return it != m_signature.components.end();
-		}
+	template<typename... T>
+	inline void archetype::init_entity(T&&... components) {
+		TINYECS_ASSUME(find_column<std::remove_cvref_t<T>>() && ...); // archetype must contain columns for these components
+		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
 	}
 
 	template<typename T>
-	[[nodiscard]] bool archetype::has_column() const noexcept {
+	[[nodiscard]] bool archetype::contains() const noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
 			return true;
 		} else {
