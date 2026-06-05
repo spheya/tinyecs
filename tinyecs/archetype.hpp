@@ -53,9 +53,7 @@ namespace tinyecs {
 
 		// acts as if you did remove_entity on this archetype, and then add_entity with the components the entity held + `components`.
 		// returns the entity that is now stored on the row, or null_entity if the row is no longer used.
-		// replaces row with the row the entity is moved to in the destination archetype.
-		template<typename... T>
-		entity move_entity(size_type& row, archetype& destination, T&&... components);
+		entity move_entity(size_type dst_row, size_type src_row, archetype& destination);
 
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
@@ -260,27 +258,24 @@ namespace tinyecs {
 
 		return fill_hole(row);
 	}
-
-	template<typename... T>
-	entity archetype::move_entity(size_type& row, archetype& destination, T&&... components) {
-		TINYECS_ASSUME(row < m_size);
-		TINYECS_ASSUME(extend_signature<std::remove_cvref_t<T>...>(m_signature) == destination.m_signature);
-		size_type from_row = row;
-		row = destination.add_entity(m_entities[from_row], std::forward<T>(components)...);
-
+	
+	inline entity archetype::move_entity(size_type dst_row, size_type src_row, archetype& destination) {
+		TINYECS_ASSUME(src_row < m_size);
+		TINYECS_ASSUME(dst_row < destination.m_size);
+		
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
-			char* column = static_cast<char*>(m_columns[i]);
-			char* dst = static_cast<char*>(destination.column(m_signature.components[i]));
+			char* src_column = static_cast<char*>(m_columns[i]);
+			char* dst_column = static_cast<char*>(destination.column(m_signature.components[i]));
 
 			if(ops.is_trivially_copyable()) {
-				memcpy(dst, column + from_row * ops.component_size, ops.component_size);
+				memcpy(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size, ops.component_size);
 			} else {
-				ops.relocate(dst, column + from_row * ops.component_size);
+				ops.relocate(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size);
 			}
 		}
 
-		return fill_hole(from_row);
+		return fill_hole(src_row);
 	}
 
 	template<typename T>

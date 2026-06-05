@@ -12,7 +12,6 @@
 #include "meta.hpp"      // IWYU pragma: export
 #include "signature.hpp" // IWYU pragma: export
 
-
 namespace tinyecs {
 
 	struct entity_record {
@@ -145,7 +144,6 @@ namespace tinyecs {
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
 		entity_record& record = entities.at(e);
-
 		signature signature = extend_signature<std::remove_cvref_t<T>...>(archetypes[record.archetype].get_signature());
 
 		archetype* dst_archetype;
@@ -162,10 +160,11 @@ namespace tinyecs {
 			dst_archetype = &archetypes[dst_archetype_index];
 		}
 
-		size_type row = record.row;
-		entity replacement = archetypes[record.archetype].move_entity(record.row, *dst_archetype, std::forward<T>(components)...);
+		size_type new_row = dst_archetype->add_entity(e, std::forward<T>(components)...);
+		entity replacement = archetypes[record.archetype].move_entity(new_row, record.row, *dst_archetype);
+		if(replacement) entities.at(replacement).row = record.row;
 		record.archetype = dst_archetype_index;
-		if(replacement) entities.at(replacement).row = row;
+		record.row = new_row;
 	}
 
 	template<typename... T>
