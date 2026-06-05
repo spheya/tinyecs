@@ -290,6 +290,7 @@ namespace tinyecs {
 		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
+	// todo: remove duplicate logic in all get_or_*_archetype functions
 	template<typename... T>
 	std::pair<archetype*, size_type> world::get_or_create_archetype() {
 		signature signature = make_signature<T...>();
