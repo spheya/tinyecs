@@ -54,10 +54,10 @@ namespace tinyecs {
 		void each(Func&& func) const;
 
 	private:
-		entity nextEntity = null_entity + 1;
-		std::unordered_map<entity, entity_record> entities;
-		std::unordered_map<signature, size_type> archetype_lut;
-		std::vector<archetype> archetypes;
+		entity m_nextEntity = null_entity + 1;
+		std::unordered_map<entity, entity_record> m_entities;
+		std::unordered_map<signature, size_type> m_archetype_lut;
+		std::vector<archetype> m_archetypes;
 	};
 
 	// todo: clean this up
@@ -116,53 +116,53 @@ namespace tinyecs {
 		archetype* archetype;
 		size_type archetype_index;
 
-		auto it = archetype_lut.find(signature);
-		if(it == archetype_lut.end()) {
-			archetype_index = archetypes.size();
-			archetype_lut.emplace(signature, archetype_index);
-			archetypes.emplace_back(std::move(signature));
-			archetype = &archetypes.back();
+		auto it = m_archetype_lut.find(signature);
+		if(it == m_archetype_lut.end()) {
+			archetype_index = m_archetypes.size();
+			m_archetype_lut.emplace(signature, archetype_index);
+			m_archetypes.emplace_back(std::move(signature));
+			archetype = &m_archetypes.back();
 			archetype->init<std::remove_cvref_t<T>...>();
 		} else {
 			archetype_index = it->second;
-			archetype = &archetypes[archetype_index];
+			archetype = &m_archetypes[archetype_index];
 		}
 
-		entity e = nextEntity++;
+		entity e = m_nextEntity++;
 		size_type row = archetype->add_entity(e, std::forward<T>(components)...);
-		entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
+		m_entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;
 	}
 
 	inline void world::remove_entity(entity e) {
-		entity_record record = entities.at(e);
-		entity replacement = archetypes[record.archetype].remove_entity(record.row);
-		if(replacement) entities.at(replacement).row = record.row;
-		entities.erase(e);
+		entity_record record = m_entities.at(e);
+		entity replacement = m_archetypes[record.archetype].remove_entity(record.row);
+		if(replacement) m_entities.at(replacement).row = record.row;
+		m_entities.erase(e);
 	}
 
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
-		entity_record& record = entities.at(e);
-		signature signature = extend_signature<std::remove_cvref_t<T>...>(archetypes[record.archetype].get_signature());
+		entity_record& record = m_entities.at(e);
+		signature signature = extend_signature<std::remove_cvref_t<T>...>(m_archetypes[record.archetype].get_signature());
 
 		archetype* dst_archetype;
 		size_type dst_archetype_index;
 
-		auto it = archetype_lut.find(signature);
-		if(it == archetype_lut.end()) {
-			dst_archetype_index = archetypes.size();
-			archetype_lut.emplace(signature, dst_archetype_index);
-			archetypes.emplace_back(archetypes[record.archetype].extend<std::remove_cvref_t<T>...>(std::move(signature)));
-			dst_archetype = &archetypes.back();
+		auto it = m_archetype_lut.find(signature);
+		if(it == m_archetype_lut.end()) {
+			dst_archetype_index = m_archetypes.size();
+			m_archetype_lut.emplace(signature, dst_archetype_index);
+			m_archetypes.emplace_back(m_archetypes[record.archetype].extend<std::remove_cvref_t<T>...>(std::move(signature)));
+			dst_archetype = &m_archetypes.back();
 		} else {
 			dst_archetype_index = it->second;
-			dst_archetype = &archetypes[dst_archetype_index];
+			dst_archetype = &m_archetypes[dst_archetype_index];
 		}
 
 		size_type new_row = dst_archetype->add_entity(e, std::forward<T>(components)...);
-		entity replacement = archetypes[record.archetype].move_entity(new_row, record.row, *dst_archetype);
-		if(replacement) entities.at(replacement).row = record.row;
+		entity replacement = m_archetypes[record.archetype].move_entity(new_row, record.row, *dst_archetype);
+		if(replacement) m_entities.at(replacement).row = record.row;
 		record.archetype = dst_archetype_index;
 		record.row = new_row;
 	}
@@ -170,8 +170,8 @@ namespace tinyecs {
 	template<typename... T>
 	inline bool world::has(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
-		entity_record record = entities.at(e);
-		const archetype& archetype = archetypes[record.archetype];
+		entity_record record = m_entities.at(e);
+		const archetype& archetype = m_archetypes[record.archetype];
 		return (archetype.has_column<T>() && ...);
 	}
 
@@ -179,8 +179,8 @@ namespace tinyecs {
 	[[nodiscard]] bool world::has_any(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
-		entity_record record = entities.at(e);
-		const archetype& archetype = archetypes[record.archetype];
+		entity_record record = m_entities.at(e);
+		const archetype& archetype = m_archetypes[record.archetype];
 		return (archetype.has_column<T>() || ...);
 	}
 
@@ -214,8 +214,8 @@ namespace tinyecs {
 	inline component_pack_t<T*...> world::try_get(entity e) {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
-		entity_record record = entities.at(e);
-		archetype& archetype = archetypes[record.archetype];
+		entity_record record = m_entities.at(e);
+		archetype& archetype = m_archetypes[record.archetype];
 		std::tuple<T*...> columns(archetype.find_column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns) + record.row;
@@ -228,8 +228,8 @@ namespace tinyecs {
 	inline component_pack_t<const T*...> world::try_get(entity e) const {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
-		entity_record record = entities.at(e);
-		const archetype& archetype = archetypes[record.archetype];
+		entity_record record = m_entities.at(e);
+		const archetype& archetype = m_archetypes[record.archetype];
 		std::tuple<T*...> columns(archetype.find_column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns) + record.row;
@@ -240,12 +240,12 @@ namespace tinyecs {
 
 	template<typename Func>
 	inline void world::each(Func&& func) {
-		internal::each_impl(archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
+		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
 	template<typename Func>
 	inline void world::each(Func&& func) const {
-		internal::each_impl(archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
+		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
 } // namespace tinyecs
