@@ -151,7 +151,7 @@ namespace tinyecs {
 		auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 		archetype& src_archetype = m_archetypes[record.archetype];
 
-		TINYECS_ASSUME(dst_archetype != &src_archetype); // ... what?
+		TINYECS_ASSUME(dst_archetype != &src_archetype);                          // ... what?
 		TINYECS_ASSUME(!src_archetype.contains<std::remove_cvref_t<T>>() && ...); // cannot contain duplicate components
 
 		size_type new_row = dst_archetype->add_entity(e);
@@ -197,7 +197,7 @@ namespace tinyecs {
 		auto&& [dst_archetype, dst_archetype_index] = get_or_reduce_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 		archetype& src_archetype = m_archetypes[record.archetype];
 
-		TINYECS_ASSUME(dst_archetype != &src_archetype); // ... what?
+		TINYECS_ASSUME(dst_archetype != &src_archetype);                         // ... what?
 		TINYECS_ASSUME(src_archetype.contains<std::remove_cvref_t<T>>() && ...); // entity doesnt have these components
 
 		size_type new_row = dst_archetype->add_entity(e);

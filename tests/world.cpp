@@ -215,10 +215,8 @@ static void remove_component_test() {
 		case 1: EXPECT_FALSE((world.has_any<T, component<1>>(e))); break;
 		default:
 			EXPECT_TRUE((world.has<T, component<1>>(e)));
-			if constexpr(std::equality_comparable<T>) { 
-				EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e)); 
-			}
-			EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e)); 
+			if constexpr(std::equality_comparable<T>) { EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e)); }
+			EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
 		}
 	}
 }
