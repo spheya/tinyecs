@@ -10,7 +10,6 @@
 #include "meta.hpp"
 #include "small_vector.hpp"
 
-
 namespace tinyecs {
 
 	struct signature {

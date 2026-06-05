@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <tuple>
 #include <type_traits>
@@ -10,6 +11,7 @@
 #include "archetype.hpp" // IWYU pragma: export
 #include "meta.hpp"      // IWYU pragma: export
 #include "signature.hpp" // IWYU pragma: export
+
 
 namespace tinyecs {
 

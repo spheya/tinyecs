@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <ranges>
@@ -11,6 +12,7 @@
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
+
 
 // todo: have a version of column() that wont return nullptr, and use that everywhere instead of std::ranges::find
 
