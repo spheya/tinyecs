@@ -53,9 +53,28 @@ namespace tinyecs {
 			    if(std::ranges::find(result.components.begin(), result.components.begin() + initial_size, type_idx) == result.components.end())
 				    result.components.push_back(type_idx);
 		    }(),
-		    ...);
+		    ...
+		);
 		std::ranges::sort(result.components.begin(), result.components.end());
 		TINYECS_ASSUME(std::ranges::adjacent_find(result.components.begin(), result.components.end()) == result.components.end());
+		return result;
+	}
+
+	template<typename... T>
+	inline signature reduce_signature(signature s) {
+		static_assert(is_unique_v<T...>, "reduce_signature only takes in unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "archetype signature cannot contain entity type");
+		signature result{ std::move(s.components) };
+		(
+		    [&]() {
+			    type_index type_idx = type_id<T>();
+			    component_id* it = std::ranges::find(result.components.begin(), result.components.end(), type_idx);
+			    TINYECS_ASSUME(it != result.components.end());
+			    result.components.erase(it);
+		    }(),
+		    ...
+		);
 		return result;
 	}
 

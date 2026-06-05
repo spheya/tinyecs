@@ -34,6 +34,9 @@ namespace tinyecs {
 		void set(entity e, T&&... components);
 
 		template<typename... T>
+		void remove(entity e);
+
+		template<typename... T>
 		[[nodiscard]] bool has(entity e) const noexcept;
 
 		template<typename... T>
@@ -63,6 +66,9 @@ namespace tinyecs {
 
 		template<typename... T>
 		std::pair<archetype*, size_type> get_or_extend_archetype(const archetype& base);
+
+		template<typename... T>
+		std::pair<archetype*, size_type> get_or_reduce_archetype(const archetype& base);
 
 		entity m_nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> m_entities;
@@ -139,10 +145,13 @@ namespace tinyecs {
 
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
+		static_assert(sizeof...(T) > 0, "Must add at least one component");
+
 		entity_record& record = m_entities.at(e);
 		auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 		archetype& src_archetype = m_archetypes[record.archetype];
 
+		TINYECS_ASSUME(dst_archetype != &src_archetype);                          // ... what?
 		TINYECS_ASSUME(!src_archetype.contains<std::remove_cvref_t<T>>() && ...); // cannot contain duplicate components
 
 		size_type new_row = dst_archetype->add_entity(e);
@@ -155,6 +164,8 @@ namespace tinyecs {
 
 	template<typename... T>
 	void world::set(entity e, T&&... components) {
+		static_assert(sizeof...(T) > 0, "Must set at least one component");
+
 		entity_record& record = m_entities.at(e);
 		if((m_archetypes[record.archetype].contains<std::remove_cvref_t<T>>() && ...)) {
 			// fast path: current archetype supports components
@@ -166,6 +177,8 @@ namespace tinyecs {
 			auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 			archetype& src_archetype = m_archetypes[record.archetype];
 
+			TINYECS_ASSUME(dst_archetype != &src_archetype); // ... what?
+
 			size_type new_row = dst_archetype->add_entity(e);
 			// todo: moving the entity will also move around components that are gonna be overriden during init_entity, we need a way to skip those
 			entity replacement = src_archetype.move_entity(new_row, record.row, *dst_archetype);
@@ -174,6 +187,24 @@ namespace tinyecs {
 			record.archetype = dst_archetype_index;
 			record.row = new_row;
 		}
+	}
+
+	template<typename... T>
+	void world::remove(entity e) {
+		static_assert(sizeof...(T) > 0, "Must remove at least one component");
+
+		entity_record& record = m_entities.at(e);
+		auto&& [dst_archetype, dst_archetype_index] = get_or_reduce_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
+		archetype& src_archetype = m_archetypes[record.archetype];
+
+		TINYECS_ASSUME(dst_archetype != &src_archetype);                         // ... what?
+		TINYECS_ASSUME(src_archetype.contains<std::remove_cvref_t<T>>() && ...); // entity doesnt have these components
+
+		size_type new_row = dst_archetype->add_entity(e);
+		entity replacement = src_archetype.move_entity(new_row, record.row, *dst_archetype);
+		if(replacement) m_entities.at(replacement).row = record.row;
+		record.archetype = dst_archetype_index;
+		record.row = new_row;
 	}
 
 	template<typename... T>
@@ -259,6 +290,7 @@ namespace tinyecs {
 		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
+	// todo: remove duplicate logic in all get_or_*_archetype functions
 	template<typename... T>
 	std::pair<archetype*, size_type> world::get_or_create_archetype() {
 		signature signature = make_signature<T...>();
@@ -292,7 +324,28 @@ namespace tinyecs {
 		if(it == m_archetype_lut.end()) {
 			archetype_index = m_archetypes.size();
 			m_archetype_lut.emplace(signature, archetype_index);
-			m_archetypes.emplace_back(base.extend<std::remove_cvref_t<T>...>(std::move(signature)));
+			m_archetypes.emplace_back(base.extend<T...>(std::move(signature)));
+			archetype = &m_archetypes.back();
+		} else {
+			archetype_index = it->second;
+			archetype = &m_archetypes[archetype_index];
+		}
+
+		return std::make_pair(archetype, archetype_index);
+	}
+
+	template<typename... T>
+	std::pair<archetype*, size_type> world::get_or_reduce_archetype(const archetype& base) {
+		signature signature = reduce_signature<T...>(base.get_signature());
+
+		archetype* archetype;
+		size_type archetype_index;
+
+		auto it = m_archetype_lut.find(signature);
+		if(it == m_archetype_lut.end()) {
+			archetype_index = m_archetypes.size();
+			m_archetype_lut.emplace(signature, archetype_index);
+			m_archetypes.emplace_back(base.reduce<T...>(std::move(signature)));
 			archetype = &m_archetypes.back();
 		} else {
 			archetype_index = it->second;

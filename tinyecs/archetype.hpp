@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -13,8 +12,6 @@
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
-
-// todo: have a version of column() that wont return nullptr, and use that everywhere instead of std::ranges::find
 
 namespace tinyecs {
 
@@ -43,6 +40,9 @@ namespace tinyecs {
 
 		template<typename... T>
 		[[nodiscard]] archetype extend(signature signature) const;
+
+		template<typename... T>
+		[[nodiscard]] archetype reduce(signature signature) const;
 
 		// returns the row that the entity lives on
 		size_type add_entity(entity entity);
@@ -198,7 +198,8 @@ namespace tinyecs {
 			    m_component_ops[index] = create_component_operations<T>();
 			    if(!m_columns[index]) throw std::bad_alloc();
 		    }(),
-		    ...);
+		    ...
+		);
 	}
 
 	template<typename... T>
@@ -237,7 +238,33 @@ namespace tinyecs {
 				    if(!result.m_columns[index]) throw std::bad_alloc();
 			    }
 		    }(),
-		    ...);
+		    ...
+		);
+
+		return result;
+	}
+
+	template<typename... T>
+	archetype archetype::reduce(signature signature) const {
+		static_assert(sizeof...(T) != 0);
+		TINYECS_ASSUME(reduce_signature<T...>(m_signature) == signature);
+		archetype result(std::move(signature));
+		result.m_columns.resize(result.m_signature.components.size());
+		result.m_component_ops.resize(result.m_signature.components.size());
+		result.m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
+		if(!result.m_entities) throw std::bad_alloc();
+
+		// copy over component ops and init columns
+		for(size_type i = 0; i < m_component_ops.size(); ++i) {
+			component_id type_idx = m_signature.components[i];
+			const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
+			if(it != result.m_signature.components.end()) {
+				auto index = size_type(it - result.m_signature.components.begin());
+				result.m_columns[index] = malloc(initial_capacity * m_component_ops[i].component_size);
+				result.m_component_ops[index] = m_component_ops[i];
+				if(!result.m_columns[index]) throw std::bad_alloc();
+			}
+		}
 
 		return result;
 	}
@@ -267,12 +294,13 @@ namespace tinyecs {
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* src_column = static_cast<char*>(m_columns[i]);
-			char* dst_column = static_cast<char*>(destination.column(m_signature.components[i]));
-
-			if(ops.is_trivially_copyable()) {
-				memcpy(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size, ops.component_size);
-			} else {
-				ops.relocate(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size);
+			char* dst_column = static_cast<char*>(destination.find_column(m_signature.components[i]));
+			if(dst_column) {
+				if(ops.is_trivially_copyable()) {
+					memcpy(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size, ops.component_size);
+				} else {
+					ops.relocate(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size);
+				}
 			}
 		}
 
