@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -58,6 +59,7 @@ namespace tinyecs {
 
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
+		[[nodiscard]] bool contains(type_index type_idx) const noexcept;
 
 		template<typename T>
 		[[nodiscard]] T* find_column() noexcept;
@@ -212,25 +214,28 @@ namespace tinyecs {
 
 		// copy over existing component ops
 		for(size_type i = 0; i < m_component_ops.size(); ++i) {
-			component_id type_id = m_signature.components[i];
-			const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_id);
+			component_id type_idx = m_signature.components[i];
+			const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
 			TINYECS_ASSUME(it != result.m_signature.components.end());
 			auto index = size_type(it - result.m_signature.components.begin());
-			result.m_component_ops[index] = m_component_ops[i];
 			result.m_columns[index] = malloc(initial_capacity * m_component_ops[i].component_size);
+			result.m_component_ops[index] = m_component_ops[i];
 			if(!result.m_columns[index]) throw std::bad_alloc();
 		}
 
 		// create new component ops
 		(
 		    [&]() {
-			    const component_id* it =
-			        std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_id<std::remove_cvref_t<T>>());
-			    TINYECS_ASSUME(it != result.m_signature.components.end());
-			    auto index = size_type(it - result.m_signature.components.begin());
-			    result.m_columns[index] = malloc(initial_capacity * sizeof(T));
-			    result.m_component_ops[index] = create_component_operations<T>();
-			    if(!result.m_columns[index]) throw std::bad_alloc();
+			    component_id type_idx = type_id<std::remove_cvref_t<T>>();
+				// todo: this check is redundant in cases where all added components have to be unique already, like in world::add
+			    if(std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx) == m_signature.components.end()) {
+				    const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
+				    TINYECS_ASSUME(it != result.m_signature.components.end());
+				    auto index = size_type(it - result.m_signature.components.begin());
+				    result.m_columns[index] = malloc(initial_capacity * sizeof(T));
+				    result.m_component_ops[index] = create_component_operations<T>();
+				    if(!result.m_columns[index]) throw std::bad_alloc();
+			    }
 		    }(),
 		    ...);
 

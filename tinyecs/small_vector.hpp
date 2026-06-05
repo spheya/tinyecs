@@ -268,7 +268,7 @@ namespace tinyecs {
 
 	template<typename T, size_type N>
 	void small_vector<T, N>::reserve(size_type capacity) {
-		if(capacity < m_capacity) return;
+		if(capacity <= m_capacity) return;
 		TINYECS_ASSUME(capacity > N);
 
 		if constexpr(std::is_trivially_copyable_v<T>) {

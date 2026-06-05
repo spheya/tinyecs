@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 #include <tinyecs/world.hpp>
 
+#include "tinyecs/meta.hpp"
+
 namespace {
 	template<size_t N>
 	struct component {
@@ -169,6 +171,29 @@ static void add_components_after_creation_test() {
 }
 
 template<typename T>
+static void set_component_test() {
+	tinyecs::world world;
+	std::vector<tinyecs::entity> entities = add_entities<T, component<1>>(world, 1000);
+	for(tinyecs::entity e : entities) {
+		if(e % 2 == 0) {
+			world.set(e, component_generator<T>{}(0));
+		} else {
+			world.set(e, component_generator<T>{}(0), component_generator<component<2>>{}(e));
+		}
+	}
+
+	for(tinyecs::entity e : entities) {
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<T>(e), component_generator<T>{}(0));
+		EXPECT_TRUE(world.has<component<1>>(e));
+		if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+		if(e % 2 != 0) {
+			EXPECT_TRUE(world.has<component<2>>(e));
+			if constexpr(std::equality_comparable<T>) EXPECT_EQ(world.get<component<2>>(e), component_generator<component<2>>{}(e));
+		}
+	}
+}
+
+template<typename T>
 static void simple_each_test() {
 	tinyecs::world world;
 	std::vector<tinyecs::entity> e1 = add_entities<T>(world, 500);
@@ -218,6 +243,9 @@ static void entity_removal_test() {
 	}                                                   \
 	TEST(world, name##_add_components_after_creation) { \
 		add_components_after_creation_test<type>();     \
+	}                                                   \
+	TEST(world, name##_set_component_test) {            \
+		set_component_test<type>();                     \
 	}                                                   \
 	TEST(world, name##_simple_each) {                   \
 		simple_each_test<type>();                       \

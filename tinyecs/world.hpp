@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -28,6 +29,9 @@ namespace tinyecs {
 
 		template<typename... T>
 		void add(entity e, T&&... components);
+
+		template<typename... T>
+		void set(entity e, T&&... components);
 
 		template<typename... T>
 		[[nodiscard]] bool has(entity e) const noexcept;
@@ -150,6 +154,29 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
+	void world::set(entity e, T&&... components) {
+		entity_record& record = m_entities.at(e);
+		if((m_archetypes[record.archetype].contains<std::remove_cvref_t<T>>() && ...)) {
+			// fast path: current archetype supports components
+			archetype& archetype = m_archetypes[record.archetype];
+			(std::destroy_at(archetype.column<std::remove_cvref_t<T>>() + record.row), ...);
+			(std::construct_at(archetype.column<std::remove_cvref_t<T>>() + record.row, std::forward<T>(components)), ...);
+		} else {
+			// slow path: entity needs to be moved to another arche
+			auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
+			archetype& src_archetype = m_archetypes[record.archetype];
+
+			size_type new_row = dst_archetype->add_entity(e);
+			// todo: moving the entity will also move around components that are gonna be overriden during init_entity, we need a way to skip those
+			entity replacement = src_archetype.move_entity(new_row, record.row, *dst_archetype);
+			dst_archetype->init_entity(new_row, std::forward<T>(components)...);
+			if(replacement) m_entities.at(replacement).row = record.row;
+			record.archetype = dst_archetype_index;
+			record.row = new_row;
+		}
+	}
+
+	template<typename... T>
 	inline bool world::has(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		entity_record record = m_entities.at(e);
@@ -170,12 +197,13 @@ namespace tinyecs {
 	inline component_pack_t<component_reference<T>...> world::get(entity e) {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
+		entity_record record = m_entities.at(e);
+		archetype& archetype = m_archetypes[record.archetype];
+		std::tuple<T*...> columns(archetype.column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
-			return *try_get<T...>(e);
+			return std::get<0>(columns)[record.row];
 		} else {
-			component_pack_t<T*...> components = try_get<T...>(e);
-			// TINYECS_ASSUME(std::get<T*>(components) && ...); // entity does not contain components
-			return component_pack_t<component_reference<T>...>(*std::get<T*>(components)...);
+			return component_pack_t<component_reference<T>...>(std::get<T*>(columns)[record.row]...);
 		}
 	}
 
@@ -183,12 +211,13 @@ namespace tinyecs {
 	inline component_pack_t<component_reference<const T>...> world::get(entity e) const {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
+		entity_record record = m_entities.at(e);
+		const archetype& archetype = m_archetypes[record.archetype];
+		std::tuple<const T*...> columns(archetype.column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
-			return *try_get<const T...>(e);
+			return std::get<0>(columns)[record.row];
 		} else {
-			component_pack_t<const T*...> components = try_get<const T...>(e);
-			// TINYECS_ASSUME(std::get<const T*>(components) && ...); // entity does not contain components
-			return component_pack_t<component_reference<const T>...>(*std::get<const T*>(components)...);
+			return component_pack_t<component_reference<const T>...>(std::get<T*>(columns)[record.row]...);
 		}
 	}
 
@@ -212,7 +241,7 @@ namespace tinyecs {
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = m_entities.at(e);
 		const archetype& archetype = m_archetypes[record.archetype];
-		std::tuple<T*...> columns(archetype.find_column<T>()...);
+		std::tuple<const T*...> columns(archetype.find_column<T>()...);
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns) + record.row;
 		} else {
@@ -232,7 +261,7 @@ namespace tinyecs {
 
 	template<typename... T>
 	std::pair<archetype*, size_type> world::get_or_create_archetype() {
-		signature signature = create_signature<T...>();
+		signature signature = make_signature<T...>();
 
 		archetype* archetype;
 		size_type archetype_index;
