@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cstring>
 #include <functional>
+#include <ranges>
 #include <type_traits>
+#include <utility>
 
 #include "meta.hpp"
 #include "small_vector.hpp"
@@ -15,12 +17,45 @@ namespace tinyecs {
 	};
 
 	template<typename... T>
-	inline signature create_signature() {
+	inline signature make_signature() {
 		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
 		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
 		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
 		signature result{ { type_id<T>()... } };
 		std::ranges::sort(result.components.begin(), result.components.end());
+		return result;
+	}
+
+	template<typename... T>
+	inline signature extend_signature_unique(signature s) {
+		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
+		signature result{ std::move(s.components) };
+		result.components.reserve(result.components.size() + sizeof...(T));
+		(result.components.push_back(type_id<T>()), ...);
+		std::ranges::sort(result.components.begin(), result.components.end());
+		TINYECS_ASSUME(std::ranges::adjacent_find(result.components.begin(), result.components.end()) == result.components.end());
+		return result;
+	}
+
+	template<typename... T>
+	inline signature extend_signature(signature s) {
+		static_assert(is_unique_v<T...>, "Archetype signature must only contain unique types");
+		static_assert((std::is_same_v<T, std::remove_cvref_t<T>> && ...), "Archetype signature can only contain non-reference, unqualified types");
+		static_assert(!(std::is_same_v<T, entity> || ...), "Archetype signature cannot contain entity type");
+		signature result{ std::move(s.components) };
+		size_type initial_size = result.components.size();
+		result.components.reserve(result.components.size() + sizeof...(T));
+		(
+		    [&]() {
+			    type_index type_idx = type_id<T>();
+			    if(std::ranges::find(result.components.begin(), result.components.begin() + initial_size, type_idx) == result.components.end())
+				    result.components.push_back(type_idx);
+		    }(),
+		    ...);
+		std::ranges::sort(result.components.begin(), result.components.end());
+		TINYECS_ASSUME(std::ranges::adjacent_find(result.components.begin(), result.components.end()) == result.components.end());
 		return result;
 	}
 

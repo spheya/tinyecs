@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <ranges>
@@ -11,6 +13,8 @@
 #include "meta.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
+
+// todo: have a version of column() that wont return nullptr, and use that everywhere instead of std::ranges::find
 
 namespace tinyecs {
 
@@ -37,27 +41,50 @@ namespace tinyecs {
 		template<typename... T>
 		void init();
 
-		// returns the row that the entity lives on
 		template<typename... T>
-		size_type add_entity(entity entity, T&&... components);
+		[[nodiscard]] archetype extend(signature signature) const;
+
+		// returns the row that the entity lives on
+		size_type add_entity(entity entity);
 
 		// returns the entity that is now stored on the row, or null_entity if the row is no longer used
 		entity remove_entity(size_type row);
 
+		// acts as if you did remove_entity on this archetype, and then add_entity with the components the entity held + `components`.
+		// returns the entity that is now stored on the row, or null_entity if the row is no longer used.
+		entity move_entity(size_type dst_row, size_type src_row, archetype& destination);
+
+		template<typename... T>
+		void init_entity(size_type row, T&&... components);
+
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
+		[[nodiscard]] bool contains(type_index type_idx) const noexcept;
+
+		template<typename T>
+		[[nodiscard]] T* find_column() noexcept;
+		template<typename T>
+		[[nodiscard]] const T* find_column() const noexcept;
+		[[nodiscard]] void* find_column(type_index type_idx) noexcept;
+		[[nodiscard]] const void* find_column(type_index type_idx) const noexcept;
 
 		template<typename T>
 		[[nodiscard]] T* column() noexcept;
-
 		template<typename T>
 		[[nodiscard]] const T* column() const noexcept;
+		[[nodiscard]] void* column(type_index type_idx) noexcept;
+		[[nodiscard]] const void* column(type_index type_idx) const noexcept;
 
+		[[nodiscard]] entity* entities() noexcept;
+		[[nodiscard]] const entity* entities() const noexcept;
 		[[nodiscard]] size_type size() const noexcept;
+		[[nodiscard]] const signature& get_signature() const noexcept;
 
 		void reserve(size_type capacity);
 
 	private:
+		entity fill_hole(size_type row);
+
 		constexpr static size_t initial_capacity = 8;
 
 		signature m_signature;
@@ -175,33 +202,87 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	inline size_type archetype::add_entity(entity entity, T&&... components) {
+	archetype archetype::extend(signature signature) const {
+		// todo: avoid duplicate logic between extend() and init()
+		static_assert(sizeof...(T) != 0);
+		TINYECS_ASSUME(extend_signature<T...>(m_signature) == signature);
+		archetype result(std::move(signature));
+		result.m_columns.resize(result.m_signature.components.size());
+		result.m_component_ops.resize(result.m_signature.components.size());
+		result.m_entities = static_cast<entity*>(malloc(initial_capacity * sizeof(entity)));
+		if(!result.m_entities) throw std::bad_alloc();
+
+		// copy over existing component ops
+		for(size_type i = 0; i < m_component_ops.size(); ++i) {
+			component_id type_idx = m_signature.components[i];
+			const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
+			TINYECS_ASSUME(it != result.m_signature.components.end());
+			auto index = size_type(it - result.m_signature.components.begin());
+			result.m_columns[index] = malloc(initial_capacity * m_component_ops[i].component_size);
+			result.m_component_ops[index] = m_component_ops[i];
+			if(!result.m_columns[index]) throw std::bad_alloc();
+		}
+
+		// create new component ops
+		(
+		    [&]() {
+			    component_id type_idx = type_id<std::remove_cvref_t<T>>();
+			    // todo: this check is redundant in cases where all added components have to be unique already, like in world::add
+			    if(std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx) == m_signature.components.end()) {
+				    const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
+				    TINYECS_ASSUME(it != result.m_signature.components.end());
+				    auto index = size_type(it - result.m_signature.components.begin());
+				    result.m_columns[index] = malloc(initial_capacity * sizeof(T));
+				    result.m_component_ops[index] = create_component_operations<T>();
+				    if(!result.m_columns[index]) throw std::bad_alloc();
+			    }
+		    }(),
+		    ...);
+
+		return result;
+	}
+
+	inline size_type archetype::add_entity(entity entity) {
 		if(m_size == m_capacity) reserve(m_capacity * 2);
-		TINYECS_ASSUME(column<std::remove_cvref_t<T>>() && ...); // archetype does not contain these components
 		m_entities[m_size] = entity;
-		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
 		return m_size++;
 	}
 
 	inline entity archetype::remove_entity(size_type row) {
 		TINYECS_ASSUME(row < m_size);
-		--m_size;
 
 		for(size_type i = 0; i < m_columns.size(); ++i) {
 			const component_ops& ops = m_component_ops[i];
 			char* column = static_cast<char*>(m_columns[i]);
+			if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
+		}
+
+		return fill_hole(row);
+	}
+
+	inline entity archetype::move_entity(size_type dst_row, size_type src_row, archetype& destination) {
+		TINYECS_ASSUME(src_row < m_size);
+		TINYECS_ASSUME(dst_row < destination.m_size);
+
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* src_column = static_cast<char*>(m_columns[i]);
+			char* dst_column = static_cast<char*>(destination.column(m_signature.components[i]));
 
 			if(ops.is_trivially_copyable()) {
-				if(row != m_size) memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
+				memcpy(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size, ops.component_size);
 			} else {
-				if(!ops.is_trivially_destructible()) ops.destroy(column + row * ops.component_size);
-				if(row != m_size) ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
+				ops.relocate(dst_column + dst_row * ops.component_size, src_column + src_row * ops.component_size);
 			}
 		}
 
-		if(row == m_size) return null_entity;
-		m_entities[row] = m_entities[m_size];
-		return m_entities[row];
+		return fill_hole(src_row);
+	}
+
+	template<typename... T>
+	inline void archetype::init_entity(size_type row, T&&... components) {
+		TINYECS_ASSUME(find_column<std::remove_cvref_t<T>>() && ...); // archetype must contain columns for these components
+		(std::construct_at(column<std::remove_cvref_t<T>>() + row, std::forward<T>(components)), ...);
 	}
 
 	template<typename T>
@@ -216,31 +297,63 @@ namespace tinyecs {
 	}
 
 	template<typename T>
+	inline T* archetype::find_column() noexcept {
+		return static_cast<T*>(find_column(type_id<std::remove_const_t<T>>()));
+	}
+
+	template<typename T>
+	inline const T* archetype::find_column() const noexcept {
+		return static_cast<const T*>(find_column(type_id<std::remove_const_t<T>>()));
+	}
+
+	inline void* archetype::find_column(type_index type_idx) noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		if(it == m_signature.components.end()) return nullptr;
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline const void* archetype::find_column(type_index type_idx) const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		if(it == m_signature.components.end()) return nullptr;
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	template<typename T>
 	inline T* archetype::column() noexcept {
-		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return m_entities;
-		} else {
-			const component_id* it =
-			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<T*>(m_columns[size_type(it - m_signature.components.begin())]);
-		}
+		return static_cast<T*>(column(type_id<std::remove_const_t<T>>()));
 	}
 
 	template<typename T>
 	inline const T* archetype::column() const noexcept {
-		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
-			return m_entities;
-		} else {
-			const component_id* it =
-			    std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_id<std::remove_const_t<T>>());
-			if(it == m_signature.components.end()) return nullptr;
-			return reinterpret_cast<const T*>(m_columns[size_type(it - m_signature.components.begin())]);
-		}
+		return static_cast<const T*>(column(type_id<std::remove_const_t<T>>()));
+	}
+
+	inline void* archetype::column(type_index type_idx) noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline const void* archetype::column(type_index type_idx) const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+	inline entity* archetype::entities() noexcept {
+		return m_entities;
+	}
+
+	inline const entity* archetype::entities() const noexcept {
+		return m_entities;
 	}
 
 	inline size_type archetype::size() const noexcept {
 		return m_size;
+	}
+
+	inline const signature& archetype::get_signature() const noexcept {
+		return m_signature;
 	}
 
 	inline void archetype::reserve(size_type capacity) {
@@ -268,6 +381,26 @@ namespace tinyecs {
 		}
 
 		m_capacity = capacity;
+	}
+
+	inline entity archetype::fill_hole(size_type row) {
+		TINYECS_ASSUME(row < m_size);
+		--m_size;
+		if(row == m_size) return null_entity;
+
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+
+			if(ops.is_trivially_copyable()) {
+				memcpy(column + row * ops.component_size, column + m_size * ops.component_size, ops.component_size);
+			} else {
+				ops.relocate(column + row * ops.component_size, column + m_size * ops.component_size);
+			}
+		}
+
+		m_entities[row] = m_entities[m_size];
+		return m_entities[m_size];
 	}
 
 } // namespace tinyecs
