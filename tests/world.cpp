@@ -194,6 +194,36 @@ static void set_component_test() {
 }
 
 template<typename T>
+static void remove_component_test() {
+	tinyecs::world world;
+	std::vector<tinyecs::entity> entities = add_entities<T, component<1>>(world, 10);
+	for(tinyecs::entity e : entities) {
+		switch(e % 3) {
+		case 0: world.remove<T>(e); break;
+		case 1: world.remove<T, component<1>>(e); break;
+		default: break;
+		}
+	}
+
+	for(tinyecs::entity e : entities) {
+		switch(e % 3) {
+		case 0:
+			EXPECT_FALSE(world.has<T>(e));
+			EXPECT_TRUE(world.has<component<1>>(e));
+			EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e));
+			break;
+		case 1: EXPECT_FALSE((world.has_any<T, component<1>>(e))); break;
+		default:
+			EXPECT_TRUE((world.has<T, component<1>>(e)));
+			if constexpr(std::equality_comparable<T>) { 
+				EXPECT_EQ(world.get<T>(e), component_generator<T>{}(e)); 
+			}
+			EXPECT_EQ(world.get<component<1>>(e), component_generator<component<1>>{}(e)); 
+		}
+	}
+}
+
+template<typename T>
 static void simple_each_test() {
 	tinyecs::world world;
 	std::vector<tinyecs::entity> e1 = add_entities<T>(world, 500);
@@ -246,6 +276,9 @@ static void entity_removal_test() {
 	}                                                   \
 	TEST(world, name##_set_component_test) {            \
 		set_component_test<type>();                     \
+	}                                                   \
+	TEST(world, name##_remove_component_test) {         \
+		remove_component_test<type>();                  \
 	}                                                   \
 	TEST(world, name##_simple_each) {                   \
 		simple_each_test<type>();                       \

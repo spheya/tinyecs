@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdlib>
 #include <initializer_list>
 #include <memory>
@@ -48,6 +49,9 @@ namespace tinyecs {
 		void emplace_back(Args&&... args);
 		void push_back(const T& value);
 		void pop_back();
+
+		void erase(iterator it);
+		void erase(iterator begin, iterator end);
 
 		void reserve(size_type capacity);
 		void resize(size_type size);
@@ -264,6 +268,18 @@ namespace tinyecs {
 		TINYECS_ASSUME(m_size != 0);
 		std::destroy_at(m_data + m_size - 1);
 		--m_size;
+	}
+
+	template<typename T, size_type N>
+	void small_vector<T, N>::erase(iterator it) {
+		std::shift_left(it, m_data + m_size, 1);
+		--m_size;
+	}
+
+	template<typename T, size_type N>
+	void small_vector<T, N>::erase(iterator begin, iterator end) {
+		std::shift_left(begin, m_data + m_size, end - begin);
+		m_size -= end - begin;
 	}
 
 	template<typename T, size_type N>
