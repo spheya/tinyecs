@@ -54,7 +54,7 @@ namespace tinyecs {
 		entity move_entity(size_type dst_row, size_type src_row, archetype& destination);
 
 		template<typename... T>
-		void init_entity(T&&... components);
+		void init_entity(size_type row, T&&... components);
 
 		template<typename T>
 		[[nodiscard]] bool contains() const noexcept;
@@ -275,9 +275,9 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	inline void archetype::init_entity(T&&... components) {
+	inline void archetype::init_entity(size_type row, T&&... components) {
 		TINYECS_ASSUME(find_column<std::remove_cvref_t<T>>() && ...); // archetype must contain columns for these components
-		(std::construct_at(column<std::remove_cvref_t<T>>() + m_size, std::forward<T>(components)), ...);
+		(std::construct_at(column<std::remove_cvref_t<T>>() + row, std::forward<T>(components)), ...);
 	}
 
 	template<typename T>
