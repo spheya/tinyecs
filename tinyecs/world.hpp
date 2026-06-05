@@ -8,10 +8,9 @@
 #include <utility>
 #include <vector>
 
-#include "archetype.hpp" // IWYU pragma: export
-#include "meta.hpp"      // IWYU pragma: export
-#include "signature.hpp" // IWYU pragma: export
-#include "tinyecs/meta.hpp"
+#include "archetype.hpp"
+#include "meta.hpp"
+#include "signature.hpp"
 
 namespace tinyecs {
 
@@ -121,7 +120,7 @@ namespace tinyecs {
 		auto&& [archetype, archetype_index] = get_or_create_archetype<std::remove_cvref_t<T>...>();
 
 		entity e = m_nextEntity++;
-		size_type row = archetype->add_entity(e, std::forward<T>(components)...);
+		size_type row = archetype->add_entity(e);
 		archetype->init_entity(std::forward<T>(components)...);
 		m_entities.emplace(e, entity_record{ .archetype = archetype_index, .row = row });
 		return e;

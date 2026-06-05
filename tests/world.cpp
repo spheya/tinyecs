@@ -7,8 +7,6 @@
 #include <gtest/gtest.h>
 #include <tinyecs/world.hpp>
 
-#include "tinyecs/meta.hpp"
-
 namespace {
 	template<size_t N>
 	struct component {
