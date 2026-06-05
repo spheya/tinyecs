@@ -42,7 +42,7 @@ namespace tinyecs {
 		void init();
 
 		template<typename... T>
-		archetype extend(signature signature);
+		archetype extend(signature signature) const;
 
 		// returns the row that the entity lives on
 		template<typename... T>
@@ -201,7 +201,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	archetype archetype::extend(signature signature) {
+	archetype archetype::extend(signature signature) const {
 		// todo: avoid duplicate logic between extend() and init()
 		static_assert(sizeof...(T) != 0);
 		TINYECS_ASSUME(extend_signature<T...>(m_signature) == signature);
@@ -258,7 +258,7 @@ namespace tinyecs {
 
 		return fill_hole(row);
 	}
-	
+
 	inline entity archetype::move_entity(size_type dst_row, size_type src_row, archetype& destination) {
 		TINYECS_ASSUME(src_row < m_size);
 		TINYECS_ASSUME(dst_row < destination.m_size);

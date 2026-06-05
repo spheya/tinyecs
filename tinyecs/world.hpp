@@ -54,6 +54,12 @@ namespace tinyecs {
 		void each(Func&& func) const;
 
 	private:
+		template<typename... T>
+		std::pair<archetype*, size_type> get_or_create_archetype();
+
+		template<typename... T>
+		std::pair<archetype*, size_type> get_or_extend_archetype(const archetype& base);
+
 		entity m_nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> m_entities;
 		std::unordered_map<signature, size_type> m_archetype_lut;
@@ -111,22 +117,7 @@ namespace tinyecs {
 
 	template<typename... T>
 	inline entity world::create_entity(T&&... components) {
-		signature signature = create_signature<std::remove_cvref_t<T>...>();
-
-		archetype* archetype;
-		size_type archetype_index;
-
-		auto it = m_archetype_lut.find(signature);
-		if(it == m_archetype_lut.end()) {
-			archetype_index = m_archetypes.size();
-			m_archetype_lut.emplace(signature, archetype_index);
-			m_archetypes.emplace_back(std::move(signature));
-			archetype = &m_archetypes.back();
-			archetype->init<std::remove_cvref_t<T>...>();
-		} else {
-			archetype_index = it->second;
-			archetype = &m_archetypes[archetype_index];
-		}
+		auto&& [archetype, archetype_index] = get_or_create_archetype<std::remove_cvref_t<T>...>();
 
 		entity e = m_nextEntity++;
 		size_type row = archetype->add_entity(e, std::forward<T>(components)...);
@@ -144,26 +135,12 @@ namespace tinyecs {
 	template<typename... T>
 	void world::add(entity e, T&&... components) {
 		entity_record& record = m_entities.at(e);
-		signature signature = extend_signature<std::remove_cvref_t<T>...>(m_archetypes[record.archetype].get_signature());
+		auto&& [archetype, archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 
-		archetype* dst_archetype;
-		size_type dst_archetype_index;
-
-		auto it = m_archetype_lut.find(signature);
-		if(it == m_archetype_lut.end()) {
-			dst_archetype_index = m_archetypes.size();
-			m_archetype_lut.emplace(signature, dst_archetype_index);
-			m_archetypes.emplace_back(m_archetypes[record.archetype].extend<std::remove_cvref_t<T>...>(std::move(signature)));
-			dst_archetype = &m_archetypes.back();
-		} else {
-			dst_archetype_index = it->second;
-			dst_archetype = &m_archetypes[dst_archetype_index];
-		}
-
-		size_type new_row = dst_archetype->add_entity(e, std::forward<T>(components)...);
-		entity replacement = m_archetypes[record.archetype].move_entity(new_row, record.row, *dst_archetype);
+		size_type new_row = archetype->add_entity(e, std::forward<T>(components)...);
+		entity replacement = m_archetypes[record.archetype].move_entity(new_row, record.row, *archetype);
 		if(replacement) m_entities.at(replacement).row = record.row;
-		record.archetype = dst_archetype_index;
+		record.archetype = archetype_index;
 		record.row = new_row;
 	}
 
@@ -246,6 +223,49 @@ namespace tinyecs {
 	template<typename Func>
 	inline void world::each(Func&& func) const {
 		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
+	}
+
+	template<typename... T>
+	std::pair<archetype*, size_type> world::get_or_create_archetype() {
+		signature signature = create_signature<T...>();
+		
+		archetype* archetype;
+		size_type archetype_index;
+
+		auto it = m_archetype_lut.find(signature);
+		if(it == m_archetype_lut.end()) {
+			archetype_index = m_archetypes.size();
+			m_archetype_lut.emplace(signature, archetype_index);
+			m_archetypes.emplace_back(std::move(signature));
+			archetype = &m_archetypes.back();
+			archetype->init<T...>();
+		} else {
+			archetype_index = it->second;
+			archetype = &m_archetypes[archetype_index];
+		}
+
+		return std::make_pair(archetype, archetype_index);
+	}
+
+	template<typename... T>
+	std::pair<archetype*, size_type> world::get_or_extend_archetype(const archetype& base) {
+		signature signature = extend_signature<T...>(base.get_signature());
+
+		archetype* archetype;
+		size_type archetype_index;
+
+		auto it = m_archetype_lut.find(signature);
+		if(it == m_archetype_lut.end()) {
+			archetype_index = m_archetypes.size();
+			m_archetype_lut.emplace(signature, archetype_index);
+			m_archetypes.emplace_back(base.extend<std::remove_cvref_t<T>...>(std::move(signature)));
+			archetype = &m_archetypes.back();
+		} else {
+			archetype_index = it->second;
+			archetype = &m_archetypes[archetype_index];
+		}
+
+		return std::make_pair(archetype, archetype_index);
 	}
 
 } // namespace tinyecs
