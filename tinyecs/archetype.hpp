@@ -227,7 +227,7 @@ namespace tinyecs {
 		(
 		    [&]() {
 			    component_id type_idx = type_id<std::remove_cvref_t<T>>();
-				// todo: this check is redundant in cases where all added components have to be unique already, like in world::add
+			    // todo: this check is redundant in cases where all added components have to be unique already, like in world::add
 			    if(std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx) == m_signature.components.end()) {
 				    const component_id* it = std::ranges::find(result.m_signature.components.begin(), result.m_signature.components.end(), type_idx);
 				    TINYECS_ASSUME(it != result.m_signature.components.end());
