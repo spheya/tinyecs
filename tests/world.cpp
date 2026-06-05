@@ -19,7 +19,6 @@ namespace {
 	struct unique_component {
 		std::unique_ptr<int> ptr;
 		bool operator==(const unique_component& other) const { return *ptr == *other.ptr; }
-		bool operator!=(const unique_component& other) const { return *ptr != *other.ptr; }
 	};
 
 	struct tag {};
