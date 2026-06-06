@@ -36,6 +36,8 @@ namespace tinyecs {
 		template<typename... T>
 		void remove(entity e);
 
+		[[nodiscard]] size_type component_count(entity e) const noexcept;
+
 		template<typename... T>
 		[[nodiscard]] bool has(entity e) const noexcept;
 
@@ -205,6 +207,11 @@ namespace tinyecs {
 		if(replacement) m_entities.at(replacement).row = record.row;
 		record.archetype = dst_archetype_index;
 		record.row = new_row;
+	}
+
+	inline size_type world::component_count(entity e) const noexcept {
+		entity_record record = m_entities.at(e);
+		return m_archetypes[record.archetype].get_signature().components.size();
 	}
 
 	template<typename... T>
