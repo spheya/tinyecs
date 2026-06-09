@@ -96,7 +96,7 @@ namespace tinyecs {
 	};
 
 	template<typename T>
-	component_ops create_component_operations() {
+	inline component_ops create_component_operations() {
 		component_ops result{};
 
 		result.component_size = sizeof(T);
@@ -203,7 +203,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	archetype archetype::extend(signature signature) const {
+	inline archetype archetype::extend(signature signature) const {
 		// todo: avoid duplicate logic between extend() and init()
 		static_assert(sizeof...(T) != 0);
 		TINYECS_ASSUME(extend_signature<T...>(m_signature) == signature);
@@ -245,7 +245,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	archetype archetype::reduce(signature signature) const {
+	inline archetype archetype::reduce(signature signature) const {
 		static_assert(sizeof...(T) != 0);
 		TINYECS_ASSUME(reduce_signature<T...>(m_signature) == signature);
 		archetype result(std::move(signature));
@@ -314,7 +314,7 @@ namespace tinyecs {
 	}
 
 	template<typename T>
-	[[nodiscard]] bool archetype::contains() const noexcept {
+	inline bool archetype::contains() const noexcept {
 		if constexpr(std::is_same_v<std::remove_const_t<T>, entity>) {
 			return true;
 		} else {

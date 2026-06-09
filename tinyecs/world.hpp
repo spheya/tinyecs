@@ -146,7 +146,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	void world::add(entity e, T&&... components) {
+	inline void world::add(entity e, T&&... components) {
 		static_assert(sizeof...(T) > 0, "Must add at least one component");
 
 		entity_record& record = m_entities.at(e);
@@ -165,7 +165,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	void world::set(entity e, T&&... components) {
+	inline void world::set(entity e, T&&... components) {
 		static_assert(sizeof...(T) > 0, "Must set at least one component");
 
 		entity_record& record = m_entities.at(e);
@@ -192,7 +192,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	void world::remove(entity e) {
+	inline void world::remove(entity e) {
 		static_assert(sizeof...(T) > 0, "Must remove at least one component");
 
 		entity_record& record = m_entities.at(e);
@@ -223,7 +223,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	[[nodiscard]] bool world::has_any(entity e) const noexcept {
+	inline bool world::has_any(entity e) const noexcept {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = m_entities.at(e);
@@ -299,7 +299,7 @@ namespace tinyecs {
 
 	// todo: remove duplicate logic in all get_or_*_archetype functions
 	template<typename... T>
-	std::pair<archetype*, size_type> world::get_or_create_archetype() {
+	inline std::pair<archetype*, size_type> world::get_or_create_archetype() {
 		signature signature = make_signature<T...>();
 
 		archetype* archetype;
@@ -321,7 +321,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	std::pair<archetype*, size_type> world::get_or_extend_archetype(const archetype& base) {
+	inline std::pair<archetype*, size_type> world::get_or_extend_archetype(const archetype& base) {
 		signature signature = extend_signature<T...>(base.get_signature());
 
 		archetype* archetype;
@@ -342,7 +342,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	std::pair<archetype*, size_type> world::get_or_reduce_archetype(const archetype& base) {
+	inline std::pair<archetype*, size_type> world::get_or_reduce_archetype(const archetype& base) {
 		signature signature = reduce_signature<T...>(base.get_signature());
 
 		archetype* archetype;

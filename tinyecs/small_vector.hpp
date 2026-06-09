@@ -76,10 +76,10 @@ namespace tinyecs {
 
 	// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init)
 	template<typename T, size_type N>
-	small_vector<T, N>::small_vector() noexcept : m_data(local_storage()) {}
+	inline small_vector<T, N>::small_vector() noexcept : m_data(local_storage()) {}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::small_vector(std::initializer_list<T> values) : m_size(values.size()), m_capacity(values.size()) {
+	inline small_vector<T, N>::small_vector(std::initializer_list<T> values) : m_size(values.size()), m_capacity(values.size()) {
 		if(values.size() <= N) {
 			m_data = local_storage();
 			m_capacity = N;
@@ -92,7 +92,7 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::small_vector(const small_vector<T, N>& other) : m_size(other.m_size), m_capacity(other.m_capacity) {
+	inline small_vector<T, N>::small_vector(const small_vector<T, N>& other) : m_size(other.m_size), m_capacity(other.m_capacity) {
 		if(other.m_data == other.local_storage()) {
 			m_data = local_storage();
 		} else {
@@ -104,7 +104,7 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>& small_vector<T, N>::operator=(const small_vector<T, N>& other) {
+	inline small_vector<T, N>& small_vector<T, N>::operator=(const small_vector<T, N>& other) {
 		if(this == &other) return *this;
 		destroy();
 
@@ -123,7 +123,8 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::small_vector(small_vector<T, N>&& other) noexcept : m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity) {
+	inline small_vector<T, N>::small_vector(small_vector<T, N>&& other) noexcept :
+	    m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity) {
 		if(other.m_data == other.local_storage()) {
 			m_data = local_storage();
 			std::uninitialized_move_n(other.m_data, other.m_size, m_data);
@@ -136,7 +137,7 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>& small_vector<T, N>::operator=(small_vector<T, N>&& other) noexcept {
+	inline small_vector<T, N>& small_vector<T, N>::operator=(small_vector<T, N>&& other) noexcept {
 		if(this == &other) return *this;
 		destroy();
 
@@ -158,132 +159,132 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	small_vector<T, N>::~small_vector() {
+	inline small_vector<T, N>::~small_vector() {
 		destroy();
 	}
 	// NOLINTEND(cppcoreguidelines-pro-type-member-init)
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::destroy() {
+	inline void small_vector<T, N>::destroy() {
 		std::destroy_n(m_data, m_size);
 		if(m_data != local_storage()) free(reinterpret_cast<void*>(m_data));
 	}
 
 	template<typename T, size_type N>
-	T* small_vector<T, N>::local_storage() noexcept {
+	inline T* small_vector<T, N>::local_storage() noexcept {
 		return reinterpret_cast<T*>(m_local_storage);
 	}
 
 	template<typename T, size_type N>
-	const T* small_vector<T, N>::local_storage() const noexcept {
+	inline const T* small_vector<T, N>::local_storage() const noexcept {
 		return reinterpret_cast<const T*>(m_local_storage);
 	}
 
 	template<typename T, size_type N>
-	size_type small_vector<T, N>::size() const noexcept {
+	inline size_type small_vector<T, N>::size() const noexcept {
 		return m_size;
 	}
 
 	template<typename T, size_type N>
-	size_type small_vector<T, N>::capacity() const noexcept {
+	inline size_type small_vector<T, N>::capacity() const noexcept {
 		return m_capacity;
 	}
 
 	template<typename T, size_type N>
-	bool small_vector<T, N>::empty() const noexcept {
+	inline bool small_vector<T, N>::empty() const noexcept {
 		return m_size == 0;
 	}
 
 	template<typename T, size_type N>
-	T* small_vector<T, N>::data() noexcept {
+	inline T* small_vector<T, N>::data() noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	const T* small_vector<T, N>::data() const noexcept {
+	inline const T* small_vector<T, N>::data() const noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	typename small_vector<T, N>::iterator small_vector<T, N>::begin() noexcept {
+	inline typename small_vector<T, N>::iterator small_vector<T, N>::begin() noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	typename small_vector<T, N>::const_iterator small_vector<T, N>::begin() const noexcept {
+	inline typename small_vector<T, N>::const_iterator small_vector<T, N>::begin() const noexcept {
 		return m_data;
 	}
 
 	template<typename T, size_type N>
-	typename small_vector<T, N>::iterator small_vector<T, N>::end() noexcept {
+	inline typename small_vector<T, N>::iterator small_vector<T, N>::end() noexcept {
 		return m_data + m_size;
 	}
 
 	template<typename T, size_type N>
-	typename small_vector<T, N>::const_iterator small_vector<T, N>::end() const noexcept {
+	inline typename small_vector<T, N>::const_iterator small_vector<T, N>::end() const noexcept {
 		return m_data + m_size;
 	}
 
 	template<typename T, size_type N>
-	T& small_vector<T, N>::front() noexcept {
+	inline T& small_vector<T, N>::front() noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		return *m_data;
 	}
 
 	template<typename T, size_type N>
-	const T& small_vector<T, N>::front() const noexcept {
+	inline const T& small_vector<T, N>::front() const noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		return *m_data;
 	}
 
 	template<typename T, size_type N>
-	T& small_vector<T, N>::back() noexcept {
+	inline T& small_vector<T, N>::back() noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		return *(m_data + m_size - 1);
 	}
 
 	template<typename T, size_type N>
-	const T& small_vector<T, N>::back() const noexcept {
+	inline const T& small_vector<T, N>::back() const noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		return *(m_data + m_size - 1);
 	}
 
 	template<typename T, size_type N>
 	template<typename... Args>
-	void small_vector<T, N>::emplace_back(Args&&... args) {
+	inline void small_vector<T, N>::emplace_back(Args&&... args) {
 		if(m_size == m_capacity) reserve(2 * m_capacity);
 		std::construct_at(m_data + m_size, std::forward<Args>(args)...);
 		++m_size;
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::push_back(const T& value) {
+	inline void small_vector<T, N>::push_back(const T& value) {
 		if(m_size == m_capacity) reserve(2 * m_capacity);
 		std::construct_at(m_data + m_size, value);
 		++m_size;
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::pop_back() {
+	inline void small_vector<T, N>::pop_back() {
 		TINYECS_ASSUME(m_size != 0);
 		std::destroy_at(m_data + m_size - 1);
 		--m_size;
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::erase(iterator it) {
+	inline void small_vector<T, N>::erase(iterator it) {
 		std::shift_left(it, m_data + m_size, 1);
 		--m_size;
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::erase(iterator begin, iterator end) {
+	inline void small_vector<T, N>::erase(iterator begin, iterator end) {
 		std::shift_left(begin, m_data + m_size, end - begin);
 		m_size -= end - begin;
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::reserve(size_type capacity) {
+	inline void small_vector<T, N>::reserve(size_type capacity) {
 		if(capacity <= m_capacity) return;
 		TINYECS_ASSUME(capacity > N);
 
@@ -310,7 +311,7 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::resize(size_type size) {
+	inline void small_vector<T, N>::resize(size_type size) {
 		if(size > m_size) {
 			if(size > m_capacity) reserve(size);
 			std::uninitialized_default_construct_n(m_data + m_size, size - m_size);
@@ -321,27 +322,27 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	void small_vector<T, N>::clear() {
+	inline void small_vector<T, N>::clear() {
 		std::destroy_n(m_data, m_size);
 		m_size = 0;
 	}
 
 	template<typename T, size_type N>
-	T& small_vector<T, N>::operator[](size_type idx) noexcept {
+	inline T& small_vector<T, N>::operator[](size_type idx) noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		TINYECS_ASSUME(m_size > idx);
 		return m_data[idx];
 	}
 
 	template<typename T, size_type N>
-	const T& small_vector<T, N>::operator[](size_type idx) const noexcept {
+	inline const T& small_vector<T, N>::operator[](size_type idx) const noexcept {
 		TINYECS_ASSUME(m_size != 0);
 		TINYECS_ASSUME(m_size > idx);
 		return m_data[idx];
 	}
 
 	template<typename T, size_type N>
-	bool small_vector<T, N>::operator==(const small_vector<T, N>& other) const noexcept {
+	inline bool small_vector<T, N>::operator==(const small_vector<T, N>& other) const noexcept {
 		if(m_size != other.m_size) return false;
 		for(size_type i = 0; i < m_size; ++i)
 			if(m_data[i] != other.m_data[i]) return false;
@@ -349,7 +350,7 @@ namespace tinyecs {
 	}
 
 	template<typename T, size_type N>
-	bool small_vector<T, N>::operator!=(const small_vector<T, N>& other) const noexcept {
+	inline bool small_vector<T, N>::operator!=(const small_vector<T, N>& other) const noexcept {
 		return !(*this == other);
 	}
 
