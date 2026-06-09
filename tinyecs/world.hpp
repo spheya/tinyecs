@@ -11,7 +11,9 @@
 
 #include "archetype.hpp"
 #include "meta.hpp"
+#include "reflection.hpp"
 #include "signature.hpp"
+#include "small_vector.hpp"
 
 namespace tinyecs {
 
@@ -62,7 +64,12 @@ namespace tinyecs {
 		template<typename Func>
 		void each(Func&& func) const;
 
+		void visit(entity e, void* user_data);
+
 	private:
+		template<typename T>
+		void init_component_reflection();
+
 		template<typename... T>
 		std::pair<archetype*, size_type> get_or_create_archetype();
 
@@ -75,6 +82,7 @@ namespace tinyecs {
 		entity m_nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> m_entities;
 		std::unordered_map<signature, size_type> m_archetype_lut;
+		std::unordered_map<component_id, void (*)(void*, void*)> m_component_reflection;
 		std::vector<archetype> m_archetypes;
 	};
 
@@ -297,6 +305,21 @@ namespace tinyecs {
 		internal::each_impl(m_archetypes, std::forward<Func>(func), typename function_traits<Func>::arguments());
 	}
 
+	inline void world::visit(entity e, void* user_data) {
+		entity_record record = m_entities.at(e);
+		archetype& archetype = m_archetypes[record.archetype];
+		for(component_id component : archetype.get_signature().components) {
+			m_component_reflection.at(component)(user_data, archetype.component(component, record.row));
+		}
+	}
+
+	template<typename T>
+	inline void world::init_component_reflection() {
+		m_component_reflection.emplace(
+		    type_id<T>(), +[](void* user_data, void* component) { visit_component<T>{}(user_data, *static_cast<T*>(component)); }
+		);
+	}
+
 	// todo: remove duplicate logic in all get_or_*_archetype functions
 	template<typename... T>
 	inline std::pair<archetype*, size_type> world::get_or_create_archetype() {
@@ -307,6 +330,7 @@ namespace tinyecs {
 
 		auto it = m_archetype_lut.find(signature);
 		if(it == m_archetype_lut.end()) {
+			(init_component_reflection<T>(), ...);
 			archetype_index = m_archetypes.size();
 			m_archetype_lut.emplace(signature, archetype_index);
 			m_archetypes.emplace_back(std::move(signature));
@@ -329,6 +353,7 @@ namespace tinyecs {
 
 		auto it = m_archetype_lut.find(signature);
 		if(it == m_archetype_lut.end()) {
+			(init_component_reflection<T>(), ...);
 			archetype_index = m_archetypes.size();
 			m_archetype_lut.emplace(signature, archetype_index);
 			m_archetypes.emplace_back(base.extend<T...>(std::move(signature)));
@@ -350,6 +375,7 @@ namespace tinyecs {
 
 		auto it = m_archetype_lut.find(signature);
 		if(it == m_archetype_lut.end()) {
+			(init_component_reflection<T>(), ...);
 			archetype_index = m_archetypes.size();
 			m_archetype_lut.emplace(signature, archetype_index);
 			m_archetypes.emplace_back(base.reduce<T...>(std::move(signature)));
