@@ -81,7 +81,7 @@ namespace tinyecs {
 		entity m_nextEntity = null_entity + 1;
 		std::unordered_map<entity, entity_record> m_entities;
 		std::unordered_map<signature, size_type> m_archetype_lut;
-		std::unordered_map<component_id, void (*)(void*)> m_component_reflection;
+		std::unordered_map<component_id, void (*)(void*, void*)> m_component_reflection;
 		std::vector<archetype> m_archetypes;
 	};
 
@@ -306,14 +306,17 @@ namespace tinyecs {
 
 	inline void world::visit(entity e, void* user_data) {
 		entity_record record = m_entities.at(e);
-		const signature& signature = m_archetypes[record.archetype].get_signature();
-		for(component_id component : signature.components)
-			m_component_reflection.at(component)(user_data);
+		archetype& archetype = m_archetypes[record.archetype];
+		for(component_id component : archetype.get_signature().components) {
+			m_component_reflection.at(component)(user_data, archetype.component(component, record.row));
+		}
 	}
 
 	template<typename T>
 	inline void world::init_component_reflection() {
-		m_component_reflection.insert(type_id<T>(), +[](void* user_data) { visit_component<T>{}(user_data); });
+		m_component_reflection.emplace(
+		    type_id<T>(), +[](void* user_data, void* component) { visit_component<T>{}(user_data, *static_cast<T*>(component)); }
+		);
 	}
 
 	// todo: remove duplicate logic in all get_or_*_archetype functions

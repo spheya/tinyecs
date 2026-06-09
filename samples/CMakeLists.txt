@@ -18,3 +18,4 @@ target_include_directories(tinyecs_sample_common SYSTEM INTERFACE ${CMAKE_CURREN
 target_link_libraries(tinyecs_sample_common INTERFACE glfw)
 
 add_subdirectory(bouncing)
+add_subdirectory(reflection)

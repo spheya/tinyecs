@@ -75,6 +75,9 @@ namespace tinyecs {
 		[[nodiscard]] void* column(type_index type_idx) noexcept;
 		[[nodiscard]] const void* column(type_index type_idx) const noexcept;
 
+		[[nodiscard]] void* component(type_index type_idx, size_type row) noexcept;
+		[[nodiscard]] const void* component(type_index type_idx, size_type row) const noexcept;
+
 		[[nodiscard]] entity* entities() noexcept;
 		[[nodiscard]] const entity* entities() const noexcept;
 		[[nodiscard]] size_type size() const noexcept;
@@ -366,6 +369,21 @@ namespace tinyecs {
 		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
 		TINYECS_ASSUME(it != m_signature.components.end());
 		return m_columns[size_type(it - m_signature.components.begin())];
+	}
+
+
+	inline void* archetype::component(type_index type_idx, size_type row) noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		auto idx = size_type(it - m_signature.components.begin());
+		return static_cast<char*>(m_columns[idx]) + row * m_component_ops[idx].component_size;
+	}
+
+	inline const void* archetype::component(type_index type_idx, size_type row) const noexcept {
+		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
+		TINYECS_ASSUME(it != m_signature.components.end());
+		auto idx = size_type(it - m_signature.components.begin());
+		return static_cast<const char*>(m_columns[idx]) + row * m_component_ops[idx].component_size;
 	}
 
 	inline entity* archetype::entities() noexcept {

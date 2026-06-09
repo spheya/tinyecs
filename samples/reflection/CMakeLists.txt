@@ -1,0 +1,3 @@
+add_executable(tinyecs_sample_reflection main.cpp)
+init_target(tinyecs_sample_reflection)
+target_link_libraries(tinyecs_sample_reflection PUBLIC tinyecs)
