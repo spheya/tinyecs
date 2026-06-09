@@ -13,6 +13,7 @@
 #include "meta.hpp"
 #include "reflection.hpp"
 #include "signature.hpp"
+#include "small_vector.hpp"
 
 namespace tinyecs {
 

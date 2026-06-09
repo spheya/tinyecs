@@ -371,7 +371,6 @@ namespace tinyecs {
 		return m_columns[size_type(it - m_signature.components.begin())];
 	}
 
-
 	inline void* archetype::component(type_index type_idx, size_type row) noexcept {
 		const component_id* it = std::ranges::find(m_signature.components.begin(), m_signature.components.end(), type_idx);
 		TINYECS_ASSUME(it != m_signature.components.end());
