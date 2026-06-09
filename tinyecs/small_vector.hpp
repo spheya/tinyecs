@@ -126,6 +126,7 @@ namespace tinyecs {
 	inline small_vector<T, N>::small_vector(small_vector<T, N>&& other) noexcept :
 	    m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity) {
 		if(other.m_data == other.local_storage()) {
+			TINYECS_ASSUME(other.m_size <= N);
 			m_data = local_storage();
 			std::uninitialized_move_n(other.m_data, other.m_size, m_data);
 			std::destroy_n(other.m_data, other.m_size);
@@ -146,6 +147,7 @@ namespace tinyecs {
 		m_capacity = other.m_capacity;
 
 		if(other.m_data == other.local_storage()) {
+			TINYECS_ASSUME(other.m_size <= N);
 			m_data = local_storage();
 			std::uninitialized_move_n(other.m_data, other.m_size, m_data);
 			std::destroy_n(other.m_data, other.m_size);
