@@ -14,6 +14,7 @@
 #include "reflection.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
+#include "tinyecs/meta.hpp"
 
 namespace tinyecs {
 
@@ -65,6 +66,8 @@ namespace tinyecs {
 		void each(Func&& func) const;
 
 		void visit(entity e, void* user_data);
+
+		void clear();
 
 	private:
 		template<typename T>
@@ -318,6 +321,14 @@ namespace tinyecs {
 		m_component_reflection.emplace(
 		    type_id<T>(), +[](void* user_data, void* component) { visit_component<T>{}(user_data, *static_cast<T*>(component)); }
 		);
+	}
+
+	inline void world::clear() {
+		for(archetype& a : m_archetypes) {
+			a.clear();
+		}
+		m_entities.clear();
+		m_nextEntity = null_entity + 1;
 	}
 
 	// todo: remove duplicate logic in all get_or_*_archetype functions
