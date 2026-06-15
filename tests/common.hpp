@@ -116,5 +116,5 @@ struct component_generator<unique_component> {
 
 template<>
 struct component_generator<tag> {
-	tag operator()(unsigned /* entity */) { return {}; }
+	tag operator()(uint64_t /* entity */) { return {}; }
 };
