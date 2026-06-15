@@ -14,7 +14,6 @@
 #include "reflection.hpp"
 #include "signature.hpp"
 #include "small_vector.hpp"
-#include "tinyecs/meta.hpp"
 
 namespace tinyecs {
 
