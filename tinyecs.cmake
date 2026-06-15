@@ -22,6 +22,7 @@ function(init_target name)
 
 			-Wno-unsafe-buffer-usage # it's stupid
 			-Wno-padded              # not super useful
+			-Wno-float-equal         # floats can be equal
 
 			-fdiagnostics-show-template-tree
 			-fdiagnostics-show-option
