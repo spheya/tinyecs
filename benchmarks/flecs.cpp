@@ -3,49 +3,31 @@
 
 #include <benchmark/benchmark.h>
 #include <flecs.h>
-#include <flecs/addons/cpp/entity.hpp>
-#include <flecs/addons/cpp/world.hpp>
 
-#include "dummy_components.hpp"
+#include "tests/common.hpp"
 
-#define CREATE_BENCHMARKS(name) \
-	BENCHMARK(name<100>);       \
-	BENCHMARK(name<500>);       \
-	BENCHMARK(name<1000>);      \
-	BENCHMARK(name<10000>);     \
-	BENCHMARK(name<100000>)
+template<typename... Components>
+static std::vector<flecs::entity> add_entities(flecs::world& world, size_t count) {
+	std::vector<flecs::entity> results;
+	results.reserve(count);
 
-template<size_t N, typename... T>
-struct entity_layout {};
-
-template<typename T>
-static flecs::entity spawn_entity(flecs::world& world) {
-	return world.entity().set<T>(init_component<T>()());
+	for(size_t i = 0; i < count; ++i) {
+		flecs::entity entity = world.entity();
+		((entity.set<Components>(component_generator<Components>{}(uint64_t(i)))), ...);
+		results.push_back(entity);
+	}
+	return results;
 }
 
-template<typename T, typename S, typename... Rest>
-static flecs::entity spawn_entity(flecs::world& world) {
-	return spawn_entity<S, Rest...>(world).template set<T>(init_component<T>()());
-}
-
-template<size_t N, typename... T>
-static void spawn_entities(flecs::world& world, entity_layout<N, T...> /* layout */) {
-	for(size_t i = 0; i < N; ++i) spawn_entity<T...>(world);
-}
-
-template<typename... T>
-static flecs::world create_world() {
+template<size_t Size>
+static void simple_scene_iteration(benchmark::State& state) {
 	flecs::world world;
-	(spawn_entities(world, T{}), ...);
-	return world;
-}
+	add_entities<small_component<0>, small_component<1>>(world, Size);
 
-template<size_t Size>
-static void simple_scene(benchmark::State& state) {
-	flecs::world world = create_world<entity_layout<Size, small_component<0>, small_component<1>>>();
+	auto q = world.query<small_component<0>, small_component<1>>();
 
 	for(auto _ : state) {
-		world.each([](small_component<0>& a, small_component<1> b) { a = a + b; });
+		q.each([](small_component<0>& a, small_component<1>& b) { a = a + b; });
 		benchmark::DoNotOptimize(world);
 	}
 
@@ -53,27 +35,30 @@ static void simple_scene(benchmark::State& state) {
 }
 
 template<size_t Size>
-static void complex_scene(benchmark::State& state) {
-	flecs::world world = create_world<
-	    entity_layout<Size / 4, small_component<0>, small_component<1>>,
-	    entity_layout<Size, big_component<0>, big_component<1>>,
-	    entity_layout<Size, small_component<0>, big_component<1>>,
-	    entity_layout<Size, small_component<1>, big_component<1>>,
-	    entity_layout<Size, small_component<1>, big_component<2>>,
-	    entity_layout<Size, small_component<1>, big_component<3>>,
-	    entity_layout<Size, small_component<1>, big_component<4>>,
-	    entity_layout<Size, big_component<0>, medium_component<1>, small_component<1>>,
-	    entity_layout<Size / 4, medium_component<0>, small_component<0>, small_component<1>>,
-	    entity_layout<Size / 4, big_component<0>, big_component<1>, big_component<2>, small_component<0>, medium_component<0>, small_component<1>>,
-	    entity_layout<Size, small_component<0>, small_component<2>>,
-	    entity_layout<Size, small_component<1>, small_component<2>>,
-	    entity_layout<Size, small_component<3>, small_component<2>>,
-	    entity_layout<Size, small_component<4>, small_component<2>>,
-	    entity_layout<Size / 4, small_component<0>, small_component<1>, medium_component<0>, medium_component<1>, medium_component<2>>,
-	    entity_layout<Size, small_component<5>, small_component<2>>>();
+static void complex_scene_iteration(benchmark::State& state) {
+	flecs::world world;
+
+	add_entities<small_component<0>, small_component<1>>(world, Size / 4);
+	add_entities<big_component<0>, big_component<1>>(world, Size);
+	add_entities<small_component<0>, big_component<1>>(world, Size);
+	add_entities<small_component<1>, big_component<1>>(world, Size);
+	add_entities<small_component<1>, big_component<2>>(world, Size);
+	add_entities<small_component<1>, big_component<3>>(world, Size);
+	add_entities<small_component<1>, big_component<4>>(world, Size);
+	add_entities<big_component<0>, medium_component<1>, small_component<1>>(world, Size);
+	add_entities<medium_component<0>, small_component<0>, small_component<1>>(world, Size / 4);
+	add_entities<big_component<0>, big_component<1>, big_component<2>, small_component<0>, medium_component<0>, small_component<1>>(world, Size / 4);
+	add_entities<small_component<0>, small_component<2>>(world, Size);
+	add_entities<small_component<1>, small_component<2>>(world, Size);
+	add_entities<small_component<3>, small_component<2>>(world, Size);
+	add_entities<small_component<4>, small_component<2>>(world, Size);
+	add_entities<small_component<0>, small_component<1>, medium_component<0>, medium_component<1>, medium_component<2>>(world, Size / 4);
+	add_entities<small_component<5>, small_component<2>>(world, Size);
+
+	auto q = world.query<small_component<0>, small_component<1>>();
 
 	for(auto _ : state) {
-		world.each([](small_component<0>& a, small_component<1> b) { a = a + b; });
+		q.each([](small_component<0>& a, small_component<1>& b) { a = a + b; });
 		benchmark::DoNotOptimize(world);
 	}
 
@@ -81,45 +66,117 @@ static void complex_scene(benchmark::State& state) {
 }
 
 template<size_t Size>
-static void archetype_explosion(benchmark::State& state) {
-	flecs::world world = create_world<
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<0>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<1>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<2>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<3>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<4>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<5>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<6>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<7>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<8>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<9>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<10>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<11>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<12>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<13>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<14>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<15>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<16>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<17>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<18>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<19>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<20>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<21>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<22>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<23>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<24>>,
-	    entity_layout<Size / 25, small_component<0>, small_component<1>, medium_component<25>>>();
+static void archetype_explosion_iteration(benchmark::State& state) {
+	flecs::world world;
+	add_entities<small_component<0>, small_component<1>, medium_component<0>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<1>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<2>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<3>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<4>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<5>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<6>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<7>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<8>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<9>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<10>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<11>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<12>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<13>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<14>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<15>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<16>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<17>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<18>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<19>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<20>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<21>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<22>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<23>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<24>>(world, Size / 25);
+	add_entities<small_component<0>, small_component<1>, medium_component<25>>(world, Size / 25);
+
+	auto q = world.query<small_component<0>, small_component<1>>();
 
 	for(auto _ : state) {
-		world.each([](small_component<0>& a, small_component<1> b) { a = a + b; });
+		q.each([](small_component<0>& a, small_component<1>& b) { a = a + b; });
 		benchmark::DoNotOptimize(world);
 	}
 
 	state.SetItemsProcessed(int64_t(Size) * state.iterations());
 }
 
-CREATE_BENCHMARKS(simple_scene);
-CREATE_BENCHMARKS(complex_scene);
-CREATE_BENCHMARKS(archetype_explosion);
+static void empty_entity_creation(benchmark::State& state) {
+	flecs::world world;
+	for(auto _ : state) {
+		for(int i = 0; i < 10000; ++i) world.entity();
+		state.PauseTiming();
+		world.delete_with(0);
+		benchmark::DoNotOptimize(world);
+		state.ResumeTiming();
+	}
+	state.SetItemsProcessed(10000 * state.iterations());
+}
+
+static void entity_creation(benchmark::State& state) {
+	flecs::world world;
+	for(auto _ : state) {
+		for(int i = 0; i < 10000; ++i) world.entity().set<small_component<0>>({}).set<small_component<1>>({});
+		state.PauseTiming();
+		world.delete_with<small_component<0>>();
+		benchmark::DoNotOptimize(world);
+		state.ResumeTiming();
+	}
+	state.SetItemsProcessed(10000 * state.iterations());
+}
+
+static void component_creation(benchmark::State& state) {
+	flecs::world world;
+	std::vector<flecs::entity> entities = add_entities<>(world, 10000);
+	for(auto _ : state) {
+		for(flecs::entity e : entities) e.set<small_component<0>>({});
+
+		state.PauseTiming();
+		for(flecs::entity e : entities) e.remove<small_component<0>>();
+		benchmark::DoNotOptimize(world);
+		state.ResumeTiming();
+	}
+	state.SetItemsProcessed(10000 * state.iterations());
+}
+
+static void archetype_creation(benchmark::State& state) {
+	for(auto _ : state) {
+		flecs::world world;
+		world.entity().set<small_component<0>>({});
+		world.entity().set<small_component<1>>({});
+		world.entity().set<small_component<2>>({});
+		world.entity().set<small_component<3>>({});
+		world.entity().set<small_component<4>>({});
+		world.entity().set<small_component<5>>({});
+		world.entity().set<small_component<6>>({});
+		world.entity().set<small_component<7>>({});
+		world.entity().set<small_component<8>>({});
+		world.entity().set<small_component<9>>({});
+		benchmark::DoNotOptimize(world);
+	}
+	state.SetItemsProcessed(10 * state.iterations());
+}
+
+// NOLINTBEGIN
+#define CREATE_ITERATION_BENCHMARKS(name) \
+	BENCHMARK(name<100>);                 \
+	BENCHMARK(name<500>);                 \
+	BENCHMARK(name<1000>);                \
+	BENCHMARK(name<10000>);               \
+	BENCHMARK(name<100000>)
+// NOLINTEND
+
+CREATE_ITERATION_BENCHMARKS(simple_scene_iteration);
+CREATE_ITERATION_BENCHMARKS(complex_scene_iteration);
+CREATE_ITERATION_BENCHMARKS(archetype_explosion_iteration);
+
+BENCHMARK(empty_entity_creation);
+BENCHMARK(entity_creation);
+BENCHMARK(component_creation);
+BENCHMARK(archetype_creation);
 
 BENCHMARK_MAIN();

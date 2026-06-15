@@ -84,6 +84,7 @@ namespace tinyecs {
 		[[nodiscard]] const signature& get_signature() const noexcept;
 
 		void reserve(size_type capacity);
+		void clear();
 
 	private:
 		entity fill_hole(size_type row);
@@ -426,6 +427,17 @@ namespace tinyecs {
 		}
 
 		m_capacity = capacity;
+	}
+
+	inline void archetype::clear() {
+		for(size_type i = 0; i < m_columns.size(); ++i) {
+			const component_ops& ops = m_component_ops[i];
+			char* column = static_cast<char*>(m_columns[i]);
+
+			if(ops.is_trivially_destructible()) continue;
+			ops.mass_destroy(column, m_size);
+		}
+		m_size = 0;
 	}
 
 	inline entity archetype::fill_hole(size_type row) {

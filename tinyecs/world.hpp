@@ -66,6 +66,9 @@ namespace tinyecs {
 
 		void visit(entity e, void* user_data);
 
+		template<typename... T>
+		void clear();
+
 	private:
 		template<typename T>
 		void init_component_reflection();
@@ -318,6 +321,24 @@ namespace tinyecs {
 		m_component_reflection.emplace(
 		    type_id<T>(), +[](void* user_data, void* component) { visit_component<T>{}(user_data, *static_cast<T*>(component)); }
 		);
+	}
+
+	template<typename... T>
+	inline void world::clear() {
+		if constexpr(sizeof...(T) == 0) {
+			// Clear everything
+			for(archetype& a : m_archetypes) a.clear();
+			m_entities.clear();
+			m_nextEntity = null_entity + 1;
+		} else {
+			// Only clear archetypes with these components
+			for(archetype& a : m_archetypes) {
+				if(a.contains<T...>()) {
+					for(auto* it = a.entities(); it != a.entities() + a.size(); ++it) m_entities.erase(*it);
+					a.clear();
+				}
+			}
+		}
 	}
 
 	// todo: remove duplicate logic in all get_or_*_archetype functions
