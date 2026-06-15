@@ -202,7 +202,8 @@ namespace tinyecs {
 			    m_component_ops[index] = create_component_operations<T>();
 			    if(!m_columns[index]) throw std::bad_alloc();
 		    }(),
-		    ...);
+		    ...
+		);
 	}
 
 	template<typename... T>
@@ -241,7 +242,8 @@ namespace tinyecs {
 				    if(!result.m_columns[index]) throw std::bad_alloc();
 			    }
 		    }(),
-		    ...);
+		    ...
+		);
 
 		return result;
 	}
