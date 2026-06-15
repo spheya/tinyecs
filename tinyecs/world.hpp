@@ -67,6 +67,7 @@ namespace tinyecs {
 
 		void visit(entity e, void* user_data);
 
+		template<typename... T>
 		void clear();
 
 	private:
@@ -323,12 +324,22 @@ namespace tinyecs {
 		);
 	}
 
+	template<typename... T>
 	inline void world::clear() {
-		for(archetype& a : m_archetypes) {
-			a.clear();
+		if constexpr(sizeof...(T) == 0) {
+			// Clear everything
+			for(archetype& a : m_archetypes) a.clear();
+			m_entities.clear();
+			m_nextEntity = null_entity + 1;
+		} else {
+			// Only clear archetypes with these components
+			for(archetype& a : m_archetypes) {
+				if(a.contains<T...>()) {
+					for(auto* it = a.entities(); it != a.entities() + a.size(); ++it) m_entities.erase(*it);
+					a.clear();
+				}
+			}
 		}
-		m_entities.clear();
-		m_nextEntity = null_entity + 1;
 	}
 
 	// todo: remove duplicate logic in all get_or_*_archetype functions
