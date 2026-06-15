@@ -57,8 +57,8 @@ struct component_generator;
 
 template<size_t N>
 struct component_generator<small_component<N>> {
-	small_component<N> operator()(unsigned entity) {
-		srand(entity + unsigned(N) * 2654418637u);
+	small_component<N> operator()(uint64_t entity) {
+		srand(unsigned(entity) + unsigned(N) * 2654418637u);
 		return {
 			.f = { float(rand()) / RAND_MAX, float(rand()) / RAND_MAX }
 		};
@@ -67,8 +67,8 @@ struct component_generator<small_component<N>> {
 
 template<size_t N>
 struct component_generator<medium_component<N>> {
-	medium_component<N> operator()(unsigned entity) {
-		srand(entity + unsigned(N) * 2654418637u);
+	medium_component<N> operator()(uint64_t entity) {
+		srand(unsigned(entity) + unsigned(N) * 2654418637u);
 		return {
 			.f = { float(rand()) / RAND_MAX,
                   float(rand()) / RAND_MAX,
@@ -92,8 +92,8 @@ struct component_generator<medium_component<N>> {
 
 template<size_t N>
 struct component_generator<big_component<N>> {
-	big_component<N> operator()(unsigned entity) {
-		srand(entity + unsigned(N) * 2654418637u);
+	big_component<N> operator()(uint64_t entity) {
+		srand(unsigned(entity) + unsigned(N) * 2654418637u);
 		return {
 			.f = { float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX,
                   float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX,
@@ -108,8 +108,8 @@ struct component_generator<big_component<N>> {
 
 template<>
 struct component_generator<unique_component> {
-	unique_component operator()(unsigned entity) {
-		srand(entity);
+	unique_component operator()(uint64_t entity) {
+		srand(unsigned(entity));
 		return { .ptr = std::make_unique<int>(rand()) };
 	}
 };
