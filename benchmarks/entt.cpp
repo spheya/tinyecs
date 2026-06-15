@@ -111,8 +111,8 @@ static void archetype_explosion_iteration(benchmark::State& state) {
 static void empty_entity_creation(benchmark::State& state) {
 	entt::registry registry;
 	for(auto _ : state) {
-		for(int i = 0; i < 10000; ++i)
-			[[maybe_unused]] entt::entity e = registry.create();
+		for(int i = 0; i < 10000; ++i) [[maybe_unused]]
+			entt::entity e = registry.create();
 
 		state.PauseTiming();
 		registry.clear();

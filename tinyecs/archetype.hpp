@@ -202,8 +202,7 @@ namespace tinyecs {
 			    m_component_ops[index] = create_component_operations<T>();
 			    if(!m_columns[index]) throw std::bad_alloc();
 		    }(),
-		    ...
-		);
+		    ...);
 	}
 
 	template<typename... T>
@@ -242,8 +241,7 @@ namespace tinyecs {
 				    if(!result.m_columns[index]) throw std::bad_alloc();
 			    }
 		    }(),
-		    ...
-		);
+		    ...);
 
 		return result;
 	}
@@ -439,7 +437,7 @@ namespace tinyecs {
 		}
 		m_size = 0;
 	}
-	
+
 	inline entity archetype::fill_hole(size_type row) {
 		TINYECS_ASSUME(row < m_size);
 		--m_size;
