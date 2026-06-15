@@ -177,8 +177,7 @@ static void archetype_creation(benchmark::State& state) {
 	BENCHMARK(name<100>);                 \
 	BENCHMARK(name<500>);                 \
 	BENCHMARK(name<1000>);                \
-	BENCHMARK(name<10000>);               \
-	BENCHMARK(name<100000>)
+	BENCHMARK(name<10000>);
 // NOLINTEND
 
 CREATE_ITERATION_BENCHMARKS(simple_scene_iteration);
