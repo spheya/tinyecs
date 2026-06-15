@@ -14,7 +14,7 @@ static std::vector<entt::entity> add_entities(entt::registry& registry, size_t c
 
 	for(size_t i = 0; i < count; ++i) {
 		entt::entity entity = registry.create();
-		((registry.emplace<Components>(entity, component_generator<Components>{}(unsigned(i)))), ...);
+		((registry.emplace<Components>(entity, component_generator<Components>{}(uint64_t(i)))), ...);
 		results.push_back(entity);
 	}
 	return results;

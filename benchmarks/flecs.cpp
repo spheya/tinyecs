@@ -13,7 +13,7 @@ static std::vector<flecs::entity> add_entities(flecs::world& world, size_t count
 
 	for(size_t i = 0; i < count; ++i) {
 		flecs::entity entity = world.entity();
-		((entity.set<Components>(component_generator<Components>{}(unsigned(i)))), ...);
+		((entity.set<Components>(component_generator<Components>{}(uint64_t(i)))), ...);
 		results.push_back(entity);
 	}
 	return results;
