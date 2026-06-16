@@ -24,48 +24,107 @@ namespace tinyecs {
 
 	class world {
 	public:
+		/// @brief Creates a new entity and initializes it with a set of components.
+		/// @param components The components that will be attached to the new entity.
+		/// @return entity The handle to the the created entity.
 		template<typename... T>
 		entity create_entity(T&&... components);
 
+		/// @brief Destroys an entity and all its components
+		/// @param e The entity to destroy
 		void destroy_entity(entity e);
 
+		/// @brief Attach one or more components to an entity.
+		/// @note If you add a component that's the entity already has, nothing will happen. Prefer using `world::set()` if overwriting is
+		/// intentional.
+		/// @param e The entity you wish to add components to.
+		/// @param components The components that will be attached to the entity.
 		template<typename... T>
 		void add(entity e, T&&... components);
 
+		/// @brief Attach or write to one or more components of an entity.
+		/// @param e The entity you wish to add/write components to.
+		/// @param components The components you wish to add/overwrite.
 		template<typename... T>
 		void set(entity e, T&&... components);
 
+		/// @brief Removes one or multiple components from an entity.
+		/// @tparam T The types of the components to remove.
+		/// @param e The entity to remove components from.
 		template<typename... T>
 		void remove(entity e);
 
+		/// @brief Get the number of components that are attached to an entity.
+		/// @param e The target entity.
+		/// @return size_type The number of components attached to the target entity.
 		[[nodiscard]] size_type component_count(entity e) const noexcept;
 
+		/// @brief Check if an entity holds one or multiple components.
+		/// @tparam T The types of the components to check the existance of.
+		/// @param e The entity to check the components of.
+		/// @return true If the target entity has all of the specified components.
+		/// @return false If the target entity does not have all of the specified components.
 		template<typename... T>
 		[[nodiscard]] bool has(entity e) const noexcept;
 
+		/// @brief Check if an entity holds at least one of the specified components.
+		/// @tparam T The types of the components to check the existance of.
+		/// @param e The entity to check the components of.
+		/// @return true If the target entity has at least one of the specified components.
+		/// @return false If the target entity does not have at least one of the specified components.
 		template<typename... T>
 		[[nodiscard]] bool has_any(entity e) const noexcept;
 
+		/// @brief Get a reference to one or multiple components on an entity.
+		/// @tparam T The types of the components you want a reference to.
+		/// @param e The entity you want the component references of.
+		/// @return component_pack_t<component_reference<T>...> A reference or a tuple of references to the requested components.
 		template<typename... T>
 		[[nodiscard]] component_pack_t<component_reference<T>...> get(entity e);
 
+		/// @brief Get a const reference to one or multiple components on an entity.
+		/// @tparam T The types of the components you want a reference to.
+		/// @param e The entity you want the component references of.
+		/// @return component_pack_t<component_reference<const T>...> A reference or a tuple of references to the requested components.
 		template<typename... T>
 		[[nodiscard]] component_pack_t<component_reference<const T>...> get(entity e) const;
 
+		/// @brief Get a pointer to one or multiple components on an entity. Will return a nullptr if the entity doesn't have the component.
+		/// @tparam T The types of the components you want a pointer to.
+		/// @param e The entity you want the component pointer of.
+		/// @return component_pack_t<T*...> A pointer or a tuple of pointers to the requested components. Will return a nullpointer if the entity
+		/// doens't contain the component.
 		template<typename... T>
 		[[nodiscard]] component_pack_t<T*...> try_get(entity e);
 
+		/// @brief Get a const pointer to one or multiple components on an entity. Will return a nullptr if the entity doesn't have the component.
+		/// @tparam T The types of the components you want a pointer to.
+		/// @param e The entity you want the component pointer of.
+		/// @return component_pack_t<T*...> A pointer or a tuple of pointers to the requested components. Will return a nullpointer if the entity
+		/// doens't contain the component.
 		template<typename... T>
 		[[nodiscard]] component_pack_t<const T*...> try_get(entity e) const;
 
+		/// @brief Iterate over all entities that match a specific signature.
+		/// The component's to filter for are deduced by the arguments of the passed callback.
+		/// @param func The callback to execute for each matching entity.
 		template<typename Func>
 		void each(Func&& func);
 
+		/// @brief Iterate over all entities that match a specific signature.
+		/// The component's to filter for are deduced by the arguments of the passed callback.
+		/// @param func The callback to execute for each matching entity.
 		template<typename Func>
 		void each(Func&& func) const;
 
+		/// @brief Calls `tinyecs::visit_component<T>{}(user_data, world.get<T>(e))` for every component that the provided entitty has. Typically used
+		/// for reflection or serialization.
+		/// @param e The target entity
+		/// @param user_data Extra data to be passed to `tinyecs::visit_component<T>` to allow passing a context of some sorts.
 		void visit(entity e, void* user_data);
 
+		/// @brief Destroys all entities with the specified components, or clears the entire world if empty.
+		/// @tparam T Types of the components that an entity must have to be destroyed.
 		template<typename... T>
 		void clear();
 
@@ -164,7 +223,7 @@ namespace tinyecs {
 		auto&& [dst_archetype, dst_archetype_index] = get_or_extend_archetype<std::remove_cvref_t<T>...>(m_archetypes[record.archetype]);
 		archetype& src_archetype = m_archetypes[record.archetype];
 
-		TINYECS_ASSUME(dst_archetype != &src_archetype);                          // ... what?
+		if(dst_archetype == src_archetype) return;
 		TINYECS_ASSUME(!src_archetype.contains<std::remove_cvref_t<T>>() && ...); // cannot contain duplicate components
 
 		size_type new_row = dst_archetype->add_entity(e);
