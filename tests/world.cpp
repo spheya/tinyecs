@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common.hpp"
+#include "tinyecs/meta.hpp"
 
 template<typename... Components>
 static std::vector<tinyecs::entity> add_entities(tinyecs::world& world, size_t count) {
@@ -111,8 +112,10 @@ static void add_components_after_creation_test() {
 		world.add(e, component_generator<T>{}(e));
 		if(e % 2 == 0) {
 			world.add(e, component_generator<small_component<1>>{}(e));
+			world.add(e, component_generator<small_component<1>>{}(tinyecs::null_entity));
 		} else {
 			world.add(e, component_generator<small_component<2>>{}(e));
+			world.add(e, component_generator<small_component<2>>{}(tinyecs::null_entity));
 		}
 	}
 
