@@ -66,12 +66,6 @@ namespace tinyecs {
 	template<typename... T>
 	constexpr bool is_unique_v = is_unique<T...>::value;
 
-	template<typename T>
-	using reference = std::conditional_t<std::is_const_v<T> && std::is_trivially_copyable_v<T> && sizeof(T) <= 2 * sizeof(void*), T, T&>;
-
-	template<typename T>
-	using component_reference = std::conditional_t<std::is_same_v<std::remove_const<T>, entity>, entity, reference<T>>;
-
 	template<typename... T>
 	struct component_pack;
 

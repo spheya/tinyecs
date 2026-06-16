@@ -80,14 +80,14 @@ namespace tinyecs {
 		/// @param e The entity you want the component references of.
 		/// @return component_pack_t<component_reference<T>...> A reference or a tuple of references to the requested components.
 		template<typename... T>
-		[[nodiscard]] component_pack_t<component_reference<T>...> get(entity e);
+		[[nodiscard]] component_pack_t<T&...> get(entity e);
 
 		/// @brief Get a const reference to one or multiple components on an entity.
 		/// @tparam T The types of the components you want a reference to.
 		/// @param e The entity you want the component references of.
 		/// @return component_pack_t<component_reference<const T>...> A reference or a tuple of references to the requested components.
 		template<typename... T>
-		[[nodiscard]] component_pack_t<component_reference<const T>...> get(entity e) const;
+		[[nodiscard]] component_pack_t<const T&...> get(entity e) const;
 
 		/// @brief Get a pointer to one or multiple components on an entity. Will return a nullptr if the entity doesn't have the component.
 		/// @tparam T The types of the components you want a pointer to.
@@ -302,7 +302,7 @@ namespace tinyecs {
 	}
 
 	template<typename... T>
-	inline component_pack_t<component_reference<T>...> world::get(entity e) {
+	inline component_pack_t<T&...> world::get(entity e) {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = m_entities.at(e);
@@ -311,12 +311,12 @@ namespace tinyecs {
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns)[record.row];
 		} else {
-			return component_pack_t<component_reference<T>...>(std::get<T*>(columns)[record.row]...);
+			return component_pack_t<T&...>(std::get<T*>(columns)[record.row]...);
 		}
 	}
 
 	template<typename... T>
-	inline component_pack_t<component_reference<const T>...> world::get(entity e) const {
+	inline component_pack_t<const T&...> world::get(entity e) const {
 		static_assert(sizeof...(T) != 0, "Needs at least one component");
 		static_assert(!(std::is_same_v<std::remove_cvref_t<T>, entity> || ...), "An entity is an invalid component");
 		entity_record record = m_entities.at(e);
@@ -325,7 +325,7 @@ namespace tinyecs {
 		if constexpr(sizeof...(T) == 1) {
 			return std::get<0>(columns)[record.row];
 		} else {
-			return component_pack_t<component_reference<const T>...>(std::get<T*>(columns)[record.row]...);
+			return component_pack_t<const T&...>(std::get<T*>(columns)[record.row]...);
 		}
 	}
 
