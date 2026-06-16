@@ -203,7 +203,7 @@ static void entity_removal_test() {
 	if constexpr(std::equality_comparable<T>) {
 		tinyecs::world world;
 		std::vector<tinyecs::entity> entities = add_entities<T>(world, 100);
-		for(size_t i = 0; i < entities.size(); i += 2) world.remove_entity(entities[i]);
+		for(size_t i = 0; i < entities.size(); i += 2) world.destroy_entity(entities[i]);
 		for(size_t i = 1; i < entities.size(); i += 2) ASSERT_EQ(world.get<T>(entities[i]), component_generator<T>{}(entities[i]));
 	}
 }

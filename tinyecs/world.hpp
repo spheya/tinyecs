@@ -27,7 +27,7 @@ namespace tinyecs {
 		template<typename... T>
 		entity create_entity(T&&... components);
 
-		void remove_entity(entity e);
+		void destroy_entity(entity e);
 
 		template<typename... T>
 		void add(entity e, T&&... components);
@@ -149,7 +149,7 @@ namespace tinyecs {
 		return e;
 	}
 
-	inline void world::remove_entity(entity e) {
+	inline void world::destroy_entity(entity e) {
 		entity_record record = m_entities.at(e);
 		entity replacement = m_archetypes[record.archetype].remove_entity(record.row);
 		if(replacement) m_entities.at(replacement).row = record.row;
