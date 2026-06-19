@@ -82,7 +82,7 @@ namespace tinyecs {
 	template<typename... T>
 	using component_pack_t = component_pack<T...>::type;
 
-	inline static std::atomic<type_index> type_counter; // NOLINT
+	inline std::atomic<type_index> type_counter; // NOLINT
 
 	template<typename T>
 	[[nodiscard]] inline type_index type_id() noexcept {
