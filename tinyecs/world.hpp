@@ -175,7 +175,7 @@ namespace tinyecs {
 		}
 
 		template<typename... T, size_t... I, typename Archetype>
-		auto get_base(type_index* indices, Archetype& archetype, bool& success, std::index_sequence<I...> /* seq */) {
+		auto get_column_ptrs(type_index* indices, Archetype& archetype, bool& success, std::index_sequence<I...> /* seq */) {
 			return std::make_tuple(archetype_column_ptr<T>(indices[I], archetype, success)...);
 		}
 
@@ -189,7 +189,7 @@ namespace tinyecs {
 
 			for(auto& archetype : archetypes) {
 				bool success = true;
-				auto base = get_base<std::remove_cvref_t<Args>...>(indices, archetype, success, std::index_sequence_for<Args...>());
+				auto base = get_column_ptrs<std::remove_cvref_t<Args>...>(indices, archetype, success, std::index_sequence_for<Args...>());
 				if(!success) continue;
 				size_type size = archetype.size();
 				for(size_type i = 0; i < size; ++i) func(std::get<decltype(archetype.template find_column<std::remove_cvref_t<Args>>())>(base)[i]...);
