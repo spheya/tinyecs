@@ -161,6 +161,16 @@ static void archetype_creation(benchmark::State& state) {
 	state.SetItemsProcessed(10 * state.iterations());
 }
 
+static void individual_component_access(benchmark::State& state) {
+	flecs::world world;
+	flecs::entity e = world.entity().set(small_component<0>{});
+	for(auto _ : state) {
+		world.set(e, small_component<0>{});
+		benchmark::DoNotOptimize(world);
+	}
+	state.SetItemsProcessed(state.iterations());
+}
+
 // NOLINTBEGIN
 #define CREATE_ITERATION_BENCHMARKS(name) \
 	BENCHMARK(name<100>);                 \
@@ -178,5 +188,6 @@ BENCHMARK(empty_entity_creation);
 BENCHMARK(entity_creation);
 BENCHMARK(component_creation);
 BENCHMARK(archetype_creation);
+BENCHMARK(individual_component_access);
 
 BENCHMARK_MAIN();

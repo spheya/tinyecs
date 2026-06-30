@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -5,6 +6,7 @@
 #include <tinyecs/tinyecs.hpp>
 
 #include "tests/common.hpp"
+#include "tinyecs/meta.hpp"
 #include "tinyecs/world.hpp"
 
 template<typename... Components>
@@ -154,6 +156,16 @@ static void archetype_creation(benchmark::State& state) {
 	state.SetItemsProcessed(10 * state.iterations());
 }
 
+static void individual_component_access(benchmark::State& state) {
+	ecs::world world;
+	ecs::entity e = world.create_entity(small_component<0>{});
+	for(auto _ : state) {
+		world.get<small_component<0>>(e) = small_component<0>{};
+		benchmark::DoNotOptimize(world);
+	}
+	state.SetItemsProcessed(state.iterations());
+}
+
 // NOLINTBEGIN
 #define CREATE_ITERATION_BENCHMARKS(name) \
 	BENCHMARK(name<100>);                 \
@@ -171,5 +183,6 @@ BENCHMARK(empty_entity_creation);
 BENCHMARK(entity_creation);
 BENCHMARK(component_creation);
 BENCHMARK(archetype_creation);
+BENCHMARK(individual_component_access);
 
 BENCHMARK_MAIN();

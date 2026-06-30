@@ -172,6 +172,17 @@ static void archetype_creation(benchmark::State& state) {
 	state.SetItemsProcessed(10 * state.iterations());
 }
 
+static void individual_component_access(benchmark::State& state) {
+	entt::registry registry;
+	entt::entity e = registry.create();
+	registry.emplace<small_component<0>>(e, small_component<0>{});
+	for(auto _ : state) {
+		registry.get<small_component<0>>(e) = small_component<0>{};
+		benchmark::DoNotOptimize(registry);
+	}
+	state.SetItemsProcessed(state.iterations());
+}
+
 // NOLINTBEGIN
 #define CREATE_ITERATION_BENCHMARKS(name) \
 	BENCHMARK(name<100>);                 \
@@ -188,5 +199,6 @@ BENCHMARK(empty_entity_creation);
 BENCHMARK(entity_creation);
 BENCHMARK(component_creation);
 BENCHMARK(archetype_creation);
+BENCHMARK(individual_component_access);
 
 BENCHMARK_MAIN();
